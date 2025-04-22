@@ -2,18 +2,18 @@
   "database": {
     "host": "127.0.0.1",
     "port": "3306",
-    "db": "eqemu",
-    "user": "user",
-    "password": "password",
+    "db": "quarmdb",
+    "user": "grew",
+    "password": "Grew^V`Tunes3",
     "subsystem": "MySQL",
     "salt": "randomstring"
   },
   "logsys_database": {
     "host": "127.0.0.1",
     "port": "3306",
-    "db": "eqemu",
-    "user": "user",
-    "password": "password"
+    "db": "quarmdb",
+    "user": "grew",
+    "password": "Grew^V`Tunes3"
   },
   "account": {
     "auto_create_accounts": false
@@ -22,7 +22,7 @@
     "reject_duplicate_servers": false
   },
   "security": {
-    "unregistered_allowed": true,
+    "unregistered_allowed": false,
     "mode": 5,
     "allow_password_login": true,
     "allow_token_login": true

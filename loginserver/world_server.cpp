@@ -138,7 +138,11 @@ void WorldServer::ProcessUsertoWorldResp(uint16_t opcode, const EQ::Net::Packet&
 			break;
 		}
 		case UserToWorldStatusIPLimitExceeded: {
-			c->FatalError("Error IP Limit Exceeded: \n\nYou have exceeded the maximum number of allowed IP addresses for this account.");
+			
+		        user_to_world_response->response = 1;
+			SendClientAuth(client_addr, c->GetAccountName(), c->GetKey(), c->GetAccountID(), c->GetMacClientVersion());
+
+			//c->FatalError("Error IP Limit Exceeded: \n\nYou have exceeded the maximum number of allowed IP addresses for this account.");
 			break;
 		}
 		}

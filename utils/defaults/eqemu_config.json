@@ -10,9 +10,9 @@
     "qsdatabase": {
       "host": "localhost",
       "port": "3306",
-      "username": "root",
-      "password": "eqemu",
-      "db": "peq"
+      "username": "grew",
+      "password": "Grew^V`Tunes3",
+      "db": "quarmdb"
     },
     "chatserver": {
       "port": "7778",
@@ -23,24 +23,11 @@
       "port": "7778"
     },
     "world": {
-      "loginserver1": {
-        "account": "",
-        "password": "",
-        "legacy": "1",
-        "host": "login.eqemulator.net",
-        "port": "5998"
-      },
       "loginserver2": {
         "port": "5998",
         "account": "",
         "password": "",
         "host": "127.0.0.1"
-      },
-      "loginserver3": {
-        "port": "5998",
-        "account": "",
-        "password": "",
-        "host": "login.projecteq.net"
       },
       "tcp": {
         "ip": "127.0.0.1",
@@ -51,18 +38,18 @@
         "port": "9000",
         "enabled": "true"
       },
-      "key": "qwerty1234",
-      "shortname": "TAKP Clone Server",
-      "longname": "TAKP Clone Server",
-      "address": "192.168.0.1",
+      "key": "Streets112JustMeAndMarcRutzou",
+      "shortname": "ProjectGrew",
+      "longname": "Grew V`Tunes vol. 1",
+      "address": "167.172.22.79",
       "localaddress": "127.0.0.1"
     },
     "database": {
-      "db": "peq",
+      "db": "quarmdb",
       "host": "localhost",
       "port": "3306",
-      "username": "root",
-      "password": "eqemu"
+      "username": "grew",
+      "password": "Grew^V`Tunes3"
     },
     "files": {
       "opcodes": "assets/opcodes/opcodes.conf",

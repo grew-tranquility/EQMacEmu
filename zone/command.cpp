@@ -315,8 +315,9 @@ int command_init(void)
 		command_add("setgreed", "[greed] - Sets a merchant greed value.", AccountStatus::GMAdmin, command_setgreed) ||
 		command_add("setnpcexpansion", "[min_expansion] [max_expansion] - Restrict an NPC's spawn2 (spawn location) by min, max expansion. These are float values.", AccountStatus::GMAdmin, command_setnpcexpansion) ||
 		command_add("showbonusstats", "[item|spell|all] Shows bonus stats for target from items or spells. Shows both by default.", AccountStatus::Guide, command_showbonusstats) ||
-		command_add("set", "Set command used to set various things", AccountStatus::Guide, command_set) || 
-		command_add("show", "Show command used to show various things", AccountStatus::Guide, command_show) ||
+		command_add("set", "Set command used to set various things", AccountStatus::Guide, command_set) ||
+	       // Grew	
+		command_add("show", "Show command used to show various things", AccountStatus::Player, command_show) ||
 		command_add("showfilters", "list client serverfilter settings.", AccountStatus::GMCoder, command_showfilters) ||
 		command_add("showhelm", "on/off [all] Toggles displaying of player helms (including your own.) Specifying 'all' toggles every character currently on your account", AccountStatus::Player, command_showhelm) ||
 		command_add("showpetspell", "[spellid/searchstring] - search pet summoning spells.", AccountStatus::Guide, command_showpetspell) ||
@@ -354,8 +355,8 @@ int command_init(void)
 		command_add("wpadd", "[pause] [-h] - Add your current location as a waypoint to your NPC target's AI path.", AccountStatus::GMImpossible, command_wpadd) ||
 
 		command_add("xpinfo", "Show XP info about your current target.", AccountStatus::GMStaff, command_xpinfo) ||
-
-		command_add("zone", "[Zone ID|Zone Short Name] [X] [Y] [Z] - Teleport to specified Zone by ID or Short Name (coordinates are optional).", AccountStatus::QuestTroupe, command_zone) ||
+// Grew
+		command_add("zone", "[Zone ID|Zone Short Name] [X] [Y] [Z] - Teleport to specified Zone by ID or Short Name (coordinates are optional).", AccountStatus::Player, command_zone) ||
 		command_add("zoneguild", "[Zone ID|Zone Short Name] [GuildID] [X] [Y] [Z] - Teleport to specified Zone by ID or Short Name (coordinates are optional).", AccountStatus::QuestTroupe, command_zoneguild) ||
 		command_add("zonebootup", "(shortname) (ZoneServerID) - Make a zone server boot a specific zone. If no arguments are given, it will find and boot any crashed zones.", AccountStatus::GMImpossible, command_zonebootup) ||
 		command_add("zoneshutdown", "[shortname] - Shut down a zone server.", AccountStatus::GMImpossible, command_zoneshutdown) ||

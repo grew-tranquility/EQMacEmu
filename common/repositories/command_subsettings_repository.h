@@ -109,15 +109,18 @@ public:
 			{.parent_command = "set", .sub_command = "title_suffix", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "titlesuffix"},
 			{.parent_command = "set", .sub_command = "weather", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "weather"},
 			{.parent_command = "set", .sub_command = "zone", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "zclip|zcolor|zheader|zonelock|zsafecoords|zsky|zunderworld"},
-			{.parent_command = "show", .sub_command = "aggro", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "aggro"},
+			// Grew
+			{.parent_command = "show", .sub_command = "aggro", .access_level = AccountStatus::Player, .top_level_aliases = "aggro"},
 			{.parent_command = "show", .sub_command = "buffs", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "showbuffs"},
 			{.parent_command = "show", .sub_command = "client_version_summary", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "cvs"},
-			{.parent_command = "show", .sub_command = "distance", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "distance"},
+			// Grew
+			{.parent_command = "show", .sub_command = "distance", .access_level = AccountStatus::Player, .top_level_aliases = "distance"},
 			{.parent_command = "show", .sub_command = "emotes", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "emoteview"},
 			{.parent_command = "show", .sub_command = "field_of_view", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "fov"},
 			{.parent_command = "show", .sub_command = "flags", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "flags"},
 			{.parent_command = "show", .sub_command = "group_info", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "ginfo"},
-			{.parent_command = "show", .sub_command = "hatelist", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "hatelist"},
+			// Grew
+			{.parent_command = "show", .sub_command = "hatelist", .access_level = AccountStatus::Player, .top_level_aliases = "hatelist"},
 			{.parent_command = "show", .sub_command = "inventory", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "peekinv"},
 			{.parent_command = "show", .sub_command = "ip_lookup", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "iplookup"},
 			{.parent_command = "show", .sub_command = "line_of_sight", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "checklos"},

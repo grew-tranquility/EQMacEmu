@@ -2041,7 +2041,7 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, int buffslot, int caster_lev
 #ifdef SPELL_EFFECT_SPAM
 				snprintf(effect_desc, _EDLEN, "Fading Memories");
 #endif
-				if(zone->random.Roll(spells[spell_id].base[i])) {
+				//if(zone->random.Roll(spells[spell_id].base[i])) {
 
 					if(caster && caster->IsClient())
 						caster->CastToClient()->Escape();
@@ -2050,7 +2050,7 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, int buffslot, int caster_lev
 						entity_list.RemoveFromNPCTargets(caster);
 						SetInvisible(INVIS_NORMAL);
 					}
-				}
+				//}
 				break;
 			}
 
