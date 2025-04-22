@@ -299,7 +299,9 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 
 	//not sure when we would use ZONE_ERROR_NOTREADY
 	
+	// REGA: removing zone restrictions
 	//enforce min status and level
+	/*
 	if (!ignorerestrictions && (Admin() < minstatus || GetLevel() < minlevel)) {
 		zoning_message = ZoningMessage::ZoneNoExperience;
 	}
@@ -323,8 +325,9 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 		zoning_message = ZoningMessage::ZoneNoExperience;
 		Log(Logs::Detail, Logs::Character, "[CLIENT] Character is a mule and cannot leave Bazaar/Nexus/PoK!");
 	}
-
+        */
 	// Expansion checks and routing
+	/*
 	if ((content_service.GetCurrentExpansion() >= ClassicEQEraFloat && !GetGM())) {
 		bool meets_zone_expansion_check = false;
 
@@ -355,6 +358,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 	if (content_service.GetCurrentExpansion() >= ClassicEQEraFloat && GetGM()) {
 		LogInfo("[{}] Bypassing Expansion zone checks because GM status is set", GetCleanName());
 	}
+	*/
 
 	if(zoning_message == ZoningMessage::ZoneSuccess) {
 		//we have successfully zoned
@@ -1128,8 +1132,9 @@ void Client::LoadZoneFlags(LinkedList<ZoneFlags_Struct*>* ZoneFlags)
 
 bool Client::HasZoneFlag(uint32 zone_id) {
 
-	if(GetGM())
-		return true;
+	//if(GetGM())
+	//REGA: everyone has zone flags
+	return true;
 
 	LinkedListIterator<ZoneFlags_Struct*> iterator(ZoneFlags);
 	iterator.Reset();
@@ -1236,6 +1241,8 @@ bool Client::CanBeInZone(uint32 zoneid, uint32 guild_id)
 		}
 	}
 
+	// REGA: Removing zone resistrictions
+	/*
 	if(GetLevel() < minlevel) {
 		Log(Logs::Detail, Logs::Character, "[CLIENT] Character does not meet min level requirement (%d < %d)!", GetLevel(), minlevel);
 		return(false);
@@ -1288,7 +1295,7 @@ bool Client::CanBeInZone(uint32 zoneid, uint32 guild_id)
 		Log(Logs::Detail, Logs::Character, "[CLIENT] Character is a mule and cannot leave Bazaar/Nexus/PoK!");
 		Message(Chat::Red, "Trader accounts may not leave Bazaar, Plane of Knowledge, or Nexus!");
 		return(false);
-	}
+	}*/
 
 	return(true);
 }

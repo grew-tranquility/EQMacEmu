@@ -60,6 +60,6 @@ bin/
 /utils/TaskMaster/Debug/
 submodules/libuv/RelWithDebInfo/uv.exp
 
-
+# quests and Maps repos
 quests/
 Maps/

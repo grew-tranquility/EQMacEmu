@@ -344,10 +344,12 @@ void Doors::HandleClick(Client* sender, uint8 trigger, bool floor_port)
 					return;
 				}
 				zoneguildid = player_raid->GetLeaderGuildID();
+				sender->Message(Chat::Yellow, "Your zone guild ID is %d", zoneguildid);
 			}
 			else
 			{
 				zoneguildid = 1;
+				sender->Message(Chat::Yellow, "Your (PVP) zone guild ID is %d", zoneguildid);
 			}
 		}
 

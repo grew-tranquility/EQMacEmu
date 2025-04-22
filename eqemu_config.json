@@ -1,0 +1,58 @@
+{
+  "server": {
+    "zones": {
+      "defaultstatus": "0",
+      "ports": {
+        "low": "7000",
+        "high": "7400"
+      }
+    },
+    "launcher": {
+      "exe": "build/bin/zone"
+    },
+    "qsdatabase": {
+      "host": "localhost",
+      "port": "3306",
+      "username": "grew",
+      "password": "Grew^V`Tunes3",
+      "db": "quarmdb"
+    },
+    "chatserver": {
+      "port": "7778",
+      "host": ""
+    },
+    "mailserver": {
+      "host": "",
+      "port": "7778"
+    },
+    "world": {
+      "loginserver1": {
+        "port": "5998",
+        "account": "",
+        "password": "",
+        "host": "127.0.0.1"
+      },
+      "telnet": {
+        "ip": "0.0.0.0",
+	"port": "9100",
+	"enabled": "false"
+      },
+      "tcp": {
+        "ip": "0.0.0.0",
+        "port": "9000"
+      },
+      "key": "qwerty1234",
+      "shortname": "ProjectGrew",
+      "longname": "Project Grew",
+      "address": "167.172.22.79",
+      "localaddress": "127.0.0.1"
+    },
+    "database": {
+      "db": "quarmdb",
+      "host": "localhost",
+      "port": "3306",
+      "username": "grew",
+      "password": "Grew^V`Tunes3"
+    }
+  }
+}
