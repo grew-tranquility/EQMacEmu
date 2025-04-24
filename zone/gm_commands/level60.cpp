@@ -21,4 +21,10 @@ void command_level60(Client *c, const Seperator *sep)
 	float final_ = requiredxp * percent;
 	uint32 newxp = (uint32)final_ + currentXP;
 	c->SetEXP(newxp, currentaaXP);
+
+	const auto scribed_spells = c->ScribeSpells(1, 60);
+        if (scribed_spells)
+	{
+		c->Message(Chat::White, "All spells have been scribed.");
+	}
 }
