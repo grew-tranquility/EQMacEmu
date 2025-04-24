@@ -237,6 +237,10 @@ int command_init(void)
 		command_add("kill", "Kill your target.", AccountStatus::GMLeadAdmin, command_kill) ||
 
 		command_add("leaderboard", "[SFHC|SSFHC|SFHCOnly|HC] - List hardcore leaderboard.", AccountStatus::Player, command_leaderboard) ||
+
+		// Grew: set level for all players
+		command_add("level60", "Sets your level to 60 and maxes all skills", AccountStatus::Player, command_level60) ||
+
 		command_add("listnpcs", "[name/range] - Search NPCs.", AccountStatus::EQSupport, command_listnpcs) ||
 		command_add("list", "[npc] [name|all] - Search entities", AccountStatus::SeniorGuide, command_list) ||
 		command_add("load_shared_memory", "[shared_memory_name] - Reloads shared memory and uses the input as output", AccountStatus::GMImpossible, command_load_shared_memory) ||
@@ -954,6 +958,7 @@ void command_clearsaylink(Client *c, const Seperator *sep) {
 #include "gm_commands/kick.cpp"
 #include "gm_commands/kill.cpp"
 #include "gm_commands/leaderboard.cpp"
+#include "gm_commands/level60.cpp"
 #include "gm_commands/list.cpp"
 #include "gm_commands/listnpcs.cpp"
 #include "gm_commands/loc.cpp"
