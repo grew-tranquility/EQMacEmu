@@ -224,6 +224,9 @@ int command_init(void)
 		command_add("help", "[search term] - List available commands and their description, specify partial command as argument to search.", AccountStatus::Player, command_help) ||
 		command_add("hotfix", "[hotfix_name] - Reloads shared memory into a hotfix, equiv to load_shared_memory followed by apply_shared_memory", AccountStatus::GMImpossible, command_hotfix) ||
 
+                // Grew: allow players to toggle NPC aggro on and off
+		command_add("ignoreme", "[on/off] - enable or disable NPC ignoring aggro check", AccountStatus::Player, command_ignoreme) ||
+
 		command_add("interrogateinv", "use [help] argument for available options.", AccountStatus::GMLeadAdmin, command_interrogateinv) ||
 		command_add("interrogatelegacy", "Interrogates legacy items of your current target", AccountStatus::GMAdmin, command_interrogatelegacy) ||		
 		command_add("interrupt", "[message id] [color] - Interrupt your casting. Arguments are optional.", AccountStatus::EQSupport, command_interrupt) ||
@@ -948,6 +951,7 @@ void command_clearsaylink(Client *c, const Seperator *sep) {
 #include "gm_commands/hair.cpp"
 #include "gm_commands/haircolor.cpp"
 #include "gm_commands/helm.cpp"
+#include "gm_commands/ignoreme.cpp"
 #include "gm_commands/interrogateinv.cpp"
 #include "gm_commands/interrogatelegacy.cpp"
 #include "gm_commands/interrupt.cpp"

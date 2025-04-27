@@ -420,7 +420,9 @@ bool Mob::CheckWillAggro(Mob *mob, bool turn_mobs)
 		(!oos->CastToClient()->ClientFinishedLoading() ||
 			!oos->CastToClient()->Connected() || 
 			oos->CastToClient()->IsLD() || 
-			oos->CastToClient()->IsBecomeNPC() || 
+			oos->CastToClient()->IsBecomeNPC() ||
+		        // Grew: #ignoreme
+			oos->CastToClient()->GetIgnoreMe() ||	
 			oos->CastToClient()->GetGM()))
 	{
 		return false;

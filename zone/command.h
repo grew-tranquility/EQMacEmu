@@ -119,6 +119,7 @@ void command_haircolor(Client* c, const Seperator* sep);
 void command_helm(Client* c, const Seperator* sep);
 void command_help(Client* c, const Seperator* sep);
 void command_hotfix(Client* c, const Seperator* sep);
+void command_ignoreme(Client* c, const Seperator* sep);
 void command_interrogateinv(Client* c, const Seperator* sep);
 void command_interrogatelegacy(Client* c, const Seperator* sep);
 void command_interrupt(Client* c, const Seperator* sep);

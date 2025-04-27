@@ -358,6 +358,10 @@ public:
 	void SendSound(uint16 soundID);
 	bool CanIncreaseTradeskill(EQ::skills::SkillType tradeskill);
 
+        // Grew: Player IgnoreMe command #ignoreme [on/off]
+	void                    SetIgnoreMe(bool im) { bIgnoreMe = im; }
+	inline bool             GetIgnoreMe( return bIgnoreMe; }
+
 	int8			GetRevoked() const { return revoked; }
 	void			SetRevoked(int8 rev) { revoked = rev; }
 	inline uint32	GetIP()			const { return ip; }
@@ -1376,6 +1380,9 @@ private:
 	bool				duelaccepted;
 	std::list<uint32>	keyring;
 	std::list<TempMerchantList> item_reimbursement_list;
+
+        // Grew: #ignoreme
+        bool                            bIgnoreMe = false;
 
 	bool				tellsoff;	// GM /toggle
 	bool				gmhideme;
