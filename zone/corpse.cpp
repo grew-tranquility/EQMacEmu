@@ -2265,7 +2265,7 @@ void Corpse::ProcessLootLockouts(Client* give_exp_client, NPC* in_npc)
 	if (give_exp_client)
 	{
 
-		if (give_exp_client->IsGrouped())
+		if (give_exp_client->GetRaid() == nullptr && give_exp_client->GetGroup() != nullptr)
 		{
 			Group* kg = give_exp_client->GetGroup();
 			for (int i = 0; i < MAX_GROUP_MEMBERS; i++) {
@@ -2364,7 +2364,7 @@ void Corpse::ProcessLootLockouts(Client* give_exp_client, NPC* in_npc)
 				}
 			}
 		}
-		else if (give_exp_client->IsRaidGrouped())
+		else if (give_exp_client->GetRaid() != nullptr)
 		{
 			Raid* kr = give_exp_client->GetRaid();
 			if(kr)

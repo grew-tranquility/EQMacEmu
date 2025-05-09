@@ -800,7 +800,7 @@ void Client::SetLevel(uint8 set_level, bool command)
 
 	level = set_level;
 
-	if(IsRaidGrouped()) {
+	{
 		Raid *r = this->GetRaid();
 		if(r){
 			r->UpdateLevel(GetName(), set_level);
@@ -1431,9 +1431,9 @@ bool Client::IsInLevelRange(uint8 maxlevel)
 	// EQ supposedly had a minimum group range at very low levels.  What this should be is not known exactly.
 	// The EQ Official Player's Guide says it was 3 but a PoP era log shows a level 10 grouping with a level 6.
 	// I have a hunch they may have enlarged it in Luclin along with the newbie changes.  Setting this to 4 for now
-	if (maxlevel < 6u)	// allow level 1s to group with level 5s
+	if (maxlevel < 11u)	// allow level 1s to group with level 5s
 		return true;
-	else if (maxlevel < 10u && GetLevel() > (maxlevel - 5u))	// allow a minimum of a -4 difference
+	else if (maxlevel < 30u && GetLevel() > (maxlevel - 11u))	// allow a minimum of a -4 difference
 		return true;
 	else if (GetLevel() >= (maxlevel * 10u / 15u))	// this rounding allows a level 40 to group with a 61 which is correct.  some sources online are inaccurate
 		return true;

@@ -755,9 +755,9 @@ namespace ChallengeRules {
 	}
 
 	static bool InLevelRange(uint8 level, uint8 max_level) {
-		if (max_level < 6u)
+		if (max_level < 11u)
 			return true;
-		else if (max_level < 10u && level >(max_level - 5u))
+		else if (max_level < 30u && level >(max_level - 11u))
 			return true;
 		else if (level >= (max_level * 10u / 15u))
 			return true;
