@@ -11,6 +11,9 @@ sleep 3
 ./build/bin/zone qcat &
 echo "Launching zone: qcat"
 sleep 3
+./build/bin/zone freportn &
+echo "Launching zone: freportn"
+sleep 3
 ./build/bin/zone freporte &
 echo "Launching zone: freporte"
 sleep 3
@@ -22,6 +25,9 @@ echo "Launching zone: erudnint"
 sleep 3
 ./build/bin/zone erudnext &
 echo "Launching zone: erudnext"
+sleep 3
+./build/bin/zone paineel &
+echo "Launching zone: paineel"
 sleep 3
 ./build/bin/zone tox &
 echo "Launching zone: tox"

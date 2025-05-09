@@ -14,6 +14,8 @@ sleep 3
 
 ./starting_zones.sh &
 sleep 1
+./classic_zones.sh &
+sleep 1
 ./velious_zones.sh &
 sleep 1
 ./build/bin/eqlaunch dynzone1 &

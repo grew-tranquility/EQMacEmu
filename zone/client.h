@@ -360,7 +360,7 @@ public:
 
         // Grew: Player IgnoreMe command #ignoreme [on/off]
 	void                    SetIgnoreMe(bool im) { bIgnoreMe = im; }
-	inline bool             GetIgnoreMe( return bIgnoreMe; }
+	inline bool             GetIgnoreMe() { return bIgnoreMe; }
 
 	int8			GetRevoked() const { return revoked; }
 	void			SetRevoked(int8 rev) { revoked = rev; }

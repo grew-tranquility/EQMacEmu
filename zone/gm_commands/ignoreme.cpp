@@ -1,14 +1,14 @@
 #include "../client.h"
 
-void SetHideMe(Client *c, const Seperator *sep)
+void command_ignoreme(Client *c, const Seperator *sep)
 {
         const auto arguments = sep->argnum;
-        if (arguments < 2) {
+        if (arguments < 1) {
                 c->Message(Chat::White, "Usage: #ignoreme [on|off]");
                 return;
         }
 
-        const bool ignoreme = Strings::ToBool(sep->arg[2]);
+        const bool ignoreme = Strings::ToBool(sep->arg[1]);
 
         c->SetIgnoreMe(ignoreme);
 
