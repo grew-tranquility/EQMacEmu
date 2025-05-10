@@ -63,3 +63,7 @@ submodules/libuv/RelWithDebInfo/uv.exp
 # quests and Maps repos
 quests/
 Maps/
+
+#configs
+login.json
+eqemu_config.json
