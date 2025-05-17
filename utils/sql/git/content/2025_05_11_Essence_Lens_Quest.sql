@@ -330,81 +330,57 @@ ON DUPLICATE KEY UPDATE
 -- Prismatic Dragon Scale 10% chance 
 -- from Sleeper's Golem Bosses
 ------------------------------------------------------------
-DELIMITER //
 
-START TRANSACTION//
+START TRANSACTION;
 
-BEGIN
-  ------------------------------------------------------------
-  -- Loot Drop
-  ------------------------------------------------------------
-  SELECT id
-    INTO @lootdrop_id
-    FROM lootdrop
-   WHERE name = 'sleeper_golem_bosses_scale'
-   LIMIT 1
-   FOR UPDATE;
+INSERT INTO lootdrop
+        (name, min_expansion, max_expansion,
+         content_flags, content_flags_disabled)
+VALUES  ('sleeper_golem_bosses_scale', -1, -1, NULL, NULL)
+ON DUPLICATE KEY UPDATE
+        id                      = LAST_INSERT_ID(id),   -- <-- capture the key
+        min_expansion           = VALUES(min_expansion),
+        max_expansion           = VALUES(max_expansion),
+        content_flags           = VALUES(content_flags),
+        content_flags_disabled  = VALUES(content_flags_disabled);
 
-  IF @lootdrop_id IS NULL THEN
-    INSERT INTO lootdrop
-            (name, min_expansion, max_expansion,
-             content_flags, content_flags_disabled)
-    VALUES  ('sleeper_golem_bosses_scale', -1, -1, NULL, NULL);
+SET @lootdrop_id := LAST_INSERT_ID();
 
-    SET @lootdrop_id = LAST_INSERT_ID();
-  ELSE
-    UPDATE lootdrop
-       SET min_expansion          = -1,
-           max_expansion          = -1,
-           content_flags          = NULL,
-           content_flags_disabled = NULL
-     WHERE id = @lootdrop_id;
-  END IF;
+INSERT INTO lootdrop_entries
+        (lootdrop_id, item_id, item_charges, equip_item, chance,
+         minlevel,  maxlevel,  multiplier, disabled_chance,
+         min_expansion, max_expansion, min_looter_level,
+         item_loot_lockout_timer, content_flags_disabled, content_flags)
+VALUES  (@lootdrop_id, 27329, 1, 0, 100,
+         0, 127, 1, 0,
+         -1, -1, 0,
+         0, NULL, NULL)
+ON DUPLICATE KEY UPDATE
+        item_charges            = VALUES(item_charges),
+        equip_item              = VALUES(equip_item),
+        chance                  = VALUES(chance),
+        minlevel                = VALUES(minlevel),
+        maxlevel                = VALUES(maxlevel),
+        multiplier              = VALUES(multiplier),
+        disabled_chance         = VALUES(disabled_chance),
+        min_expansion           = VALUES(min_expansion),
+        max_expansion           = VALUES(max_expansion),
+        min_looter_level        = VALUES(min_looter_level),
+        item_loot_lockout_timer = VALUES(item_loot_lockout_timer),
+        content_flags_disabled  = VALUES(content_flags_disabled),
+        content_flags           = VALUES(content_flags);
 
-  ------------------------------------------------------------
-  -- Loot Drop Entries
-  ------------------------------------------------------------
-  INSERT INTO lootdrop_entries
-          (lootdrop_id, item_id, item_charges, equip_item, chance,
-           minlevel, maxlevel, multiplier, disabled_chance,
-           min_expansion, max_expansion, min_looter_level,
-           item_loot_lockout_timer, content_flags_disabled, content_flags)
-  VALUES  (@lootdrop_id, 27329, 1, 0, 100,
-           0, 127, 1, 0,
-           -1, -1, 0,
-           0, NULL, NULL)
-  ON DUPLICATE KEY UPDATE
-          item_charges            = VALUES(item_charges),
-          equip_item              = VALUES(equip_item),
-          chance                  = VALUES(chance),
-          minlevel                = VALUES(minlevel),
-          maxlevel                = VALUES(maxlevel),
-          multiplier              = VALUES(multiplier),
-          disabled_chance         = VALUES(disabled_chance),
-          min_expansion           = VALUES(min_expansion),
-          max_expansion           = VALUES(max_expansion),
-          min_looter_level        = VALUES(min_looter_level),
-          item_loot_lockout_timer = VALUES(item_loot_lockout_timer),
-          content_flags_disabled  = VALUES(content_flags_disabled),
-          content_flags           = VALUES(content_flags);
+INSERT INTO loottable_entries
+        (loottable_id, lootdrop_id, multiplier, probability,
+         droplimit, mindrop, multiplier_min)
+VALUES  (91097,            -- Sleeper golem bosses
+         @lootdrop_id, 1, 10, 1, 1, 0)
+ON DUPLICATE KEY UPDATE
+        multiplier     = VALUES(multiplier),
+        probability    = VALUES(probability),
+        droplimit      = VALUES(droplimit),
+        mindrop        = VALUES(mindrop),
+        multiplier_min = VALUES(multiplier_min);
 
-  ------------------------------------------------------------
-  -- Loot Tables Entries
-  ------------------------------------------------------------
-  INSERT INTO loottable_entries
-          (loottable_id, lootdrop_id, multiplier, probability,
-           droplimit, mindrop, multiplier_min)
-  VALUES  (91097, -- Sleeper golem bosses
-           @lootdrop_id, 1, 10, 1, 1, 0)
-  ON DUPLICATE KEY UPDATE
-          multiplier     = VALUES(multiplier),
-          probability    = VALUES(probability),
-          droplimit      = VALUES(droplimit),
-          mindrop        = VALUES(mindrop),
-          multiplier_min = VALUES(multiplier_min);
-END//
-
-COMMIT//
-
-DELIMITER ;
+COMMIT;
 
