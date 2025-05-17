@@ -309,6 +309,7 @@ public:
 	void	Trader_StartTrader();
 	void	KeyRingLoad();
 	void	KeyRingAdd(uint32 item_id);
+	void	KeyRingRemove(uint32 item_id);
 	bool	KeyRingCheck(uint32 item_id);
 	void	KeyRingList(Client* notifier);
 	bool	CheckKeyRingStage(uint16 item_id);

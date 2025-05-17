@@ -5860,6 +5860,32 @@ void Client::KeyRingAdd(uint32 item_id)
 	keyring.push_back(item_id);
 }
 
+void Client::KeyRingRemove(uint32 item_id)
+{
+	if (0==item_id)
+		return;
+
+	bool found = KeyRingCheck(item_id);
+	if (!found)
+		return;
+
+	std::string query = StringFormat("DELETE FROM character_keyring WHERE id = %i AND item_id = %i", character_id, item_id);
+	auto results = database.QueryDatabase(query);
+	if (!results.Success())
+		return;
+
+	std::string keyName("");
+	const EQ::ItemData* item = database.GetItem(item_id);
+
+	if (item && item->Name)
+		keyName = item->Name;
+
+	if (keyName.length() > 0)
+		Message(Chat::Yellow, "%s has been removed from your key ring.", keyName.c_str());
+
+	keyring.remove(item_id);
+}
+
 bool Client::KeyRingCheck(uint32 item_id)
 {
 	if (GetGM())
