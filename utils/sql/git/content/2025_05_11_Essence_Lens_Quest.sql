@@ -49,13 +49,23 @@ ON DUPLICATE KEY UPDATE
         sort_order = VALUES(sort_order);
 
 INSERT INTO npc_faction_entries -- Kromzek +500
-        (npc_faction_id, faction_id, value, npc_value, temp, sort_order)
+        (npc_faction_id, faction_id, value, npc_value, temp, sort_order)i
 VALUES  (2000,            448,       500,   0,         0,    4)
 ON DUPLICATE KEY UPDATE
         value      = VALUES(value),
         npc_value  = VALUES(npc_value),
         temp       = VALUES(temp),
         sort_order = VALUES(sort_order);
+
+------------------------------------------------------------
+-- NPC Emotes
+------------------------------------------------------------
+INSERT INTO npc_emotes (id, emoteid, event_, type, text)
+VALUES          (10010,   10010,    3,    1, "Our death is of no matter, soon our Master will return and cleanse this world, something our Mother failed to do.");
+--ON DUPLICATE KEY UPDATE
+--        event_ = VALUES(event_),
+--        type   = VALUES(type,
+--	text   = VALUES(text);
 
 ------------------------------------------------------------
 -- NPC Types
@@ -96,7 +106,7 @@ VALUES (
     212, 212, 212, 212, 212, 212, 212,
     0, 0, 0, 0, 0,
     0, 0, 0, 0, 0,
-    1, 137, 100.0, 100.0, 0,
+    1, 10010, 100.0, 100.0, 0,
     0, 0, 0, 0, 0,
     0, 0, 0.6, 30, 0,
     0, 1000.0, 0, 0, 0,
@@ -338,7 +348,7 @@ INSERT INTO lootdrop
          content_flags, content_flags_disabled)
 VALUES  ('sleeper_golem_bosses_scale', -1, -1, NULL, NULL)
 ON DUPLICATE KEY UPDATE
-        id                      = LAST_INSERT_ID(id),   -- <-- capture the key
+        id                      = LAST_INSERT_ID(id), -- necessary to update last insert id
         min_expansion           = VALUES(min_expansion),
         max_expansion           = VALUES(max_expansion),
         content_flags           = VALUES(content_flags),
