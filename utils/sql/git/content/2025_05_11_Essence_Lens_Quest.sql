@@ -62,10 +62,6 @@ ON DUPLICATE KEY UPDATE
 ------------------------------------------------------------
 INSERT INTO npc_emotes (id, emoteid, event_, type, text)
 VALUES          (10010,   10010,    3,    1, "Our death is of no matter, soon our Master will return and cleanse this world, something our Mother failed to do.");
---ON DUPLICATE KEY UPDATE
---        event_ = VALUES(event_),
---        type   = VALUES(type,
---	text   = VALUES(text);
 
 ------------------------------------------------------------
 -- NPC Types
