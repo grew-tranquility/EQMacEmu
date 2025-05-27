@@ -384,6 +384,7 @@ RULE_BOOL ( Watermap, CheckForWaterWhenFishing, true, "Only lets a player fish n
 RULE_REAL ( Watermap, FishingRodLength, 30, "How far in front of player water must be for fishing to work")
 RULE_REAL(Watermap, FishingLineLength, 28, "If water is more than this far below the player, it is considered too far to fish")
 RULE_REAL(Watermap, FishingLineExtension, 12, "In some zones, setting a longer length causes the line to go underworld. This gives us a variable to work with in areas that need a longer line.")
+RULE_REAL(Watermap, FishingLineStepSize, 1, "Basic step size for fishing calc, too small and it will eat cpu, too large and it will miss potential water")
 RULE_CATEGORY_END()
 
 RULE_CATEGORY( Spells )

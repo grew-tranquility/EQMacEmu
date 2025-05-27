@@ -3375,8 +3375,12 @@ void Mob::BuffFadeBySlot(int slot, bool iRecalcBonuses, bool message, bool updat
 			{
 				Mob *mypet = GetPet();
 				if (mypet){
-					if(mypet->IsNPC())
+					if (mypet->IsNPC())
+					{
 						mypet->CastToNPC()->Depop();
+						if(IsClient())
+							CastToClient()->SavePetInfo(true);
+					}
 					SetPetID(0);
 				}
 				break;

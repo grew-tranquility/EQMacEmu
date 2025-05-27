@@ -131,7 +131,7 @@ void Mob::MakePoweredPet(uint16 spell_id, const char* pettype, int16 petpower,
 		const char *petname, float in_size, int16 focusItemId) {
 	// Sanity and early out checking first.
 	bool scale_pet = false;
-	if(HasPet() || pettype == nullptr)
+	if(GetPet() || pettype == nullptr)
 		return;
 
 	//lookup our pets table record for this type
@@ -645,7 +645,7 @@ void Mob::SetPet(Mob* newpet) {
 
 void Mob::DepopPet(bool depopsummoned)
 {
-	if (HasPet())
+	if (GetPet())
 	{
 		Mob* mypet = GetPet();
 		SetPet(nullptr);
@@ -656,6 +656,8 @@ void Mob::DepopPet(bool depopsummoned)
 			if (mypet->IsNPC() && mypet->GetPetType() != petCharmed)
 			{
 				mypet->CastToNPC()->Depop();
+				if(IsClient())
+					CastToClient()->SavePetInfo(true);
 			}
 		}
 	}

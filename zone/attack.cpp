@@ -1329,6 +1329,7 @@ bool Client::Death(Mob* killerMob, int32 damage, uint16 spell, EQ::skills::Skill
 	}
 
 	InterruptSpell();
+	SavePetInfo(true);
 	SetPet(0);
 	SetHorseId(0);
 	dead = true;

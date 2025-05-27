@@ -801,17 +801,9 @@ void SharedDatabase::LoadItems(void* data, uint32 size, int32 items, uint32 max_
 		item.Deity = std::stoul(row[ItemField::deity]);
 		item.ItemClass = std::stoi(row[ItemField::itemclass]);
 		item.Races = std::stoi(row[ItemField::races]);
-
-		if (RuleB(Expansion, UseItemExpansionSetting) && !content_service.IsTheShadowsOfLuclinEnabled()) {
-			item.RecLevel = 0;
-			item.RecSkill = 0;
-			item.ReqLevel = 0;
-		}
-		else {
-			item.RecLevel = static_cast<uint8>(std::stoul(row[ItemField::reclevel]));
-			item.RecSkill = static_cast<uint8>(std::stoul(row[ItemField::recskill]));
-			item.ReqLevel = static_cast<uint8>(std::stoul(row[ItemField::reqlevel]));
-		}
+		item.RecLevel = static_cast<uint8>(std::stoul(row[ItemField::reclevel]));
+		item.RecSkill = static_cast<uint8>(std::stoul(row[ItemField::recskill]));
+		item.ReqLevel = static_cast<uint8>(std::stoul(row[ItemField::reqlevel]));
 		item.Slots = std::stoi(row[ItemField::slots]);
 
 		// Skill Modifier
