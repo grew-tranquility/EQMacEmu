@@ -2490,7 +2490,7 @@ void ZoneDatabase::SavePetInfo(Client *client)
 	}
 	else
 	{
-		CharacterPetInventoryRepository::DeleteWhere(database, fmt::format("char_id = {} pet = 1", client->CharacterID()));
+		CharacterPetInventoryRepository::DeleteWhere(database, fmt::format("char_id = {} AND pet = 1", client->CharacterID()));
 	}
 
 }
