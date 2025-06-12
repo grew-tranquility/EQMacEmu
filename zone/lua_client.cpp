@@ -1274,6 +1274,11 @@ void Lua_Client::SetBoatName(const char* in_boatname)
 	self->SetBoatName(in_boatname);
 }
 
+void Lua_Client::KeyRingRemove(Lua_Mob target, int16 itemid) {
+	Lua_Safe_Call_Void();
+	self->KeyRingRemove(itemid);
+}
+
 void Lua_Client::QuestReward(Lua_Mob target) {
 	Lua_Safe_Call_Void();
 	self->QuestReward(target);
@@ -1624,6 +1629,7 @@ luabind::scope lua_register_client() {
 		.def("SetBoatID", (void(Lua_Client::*)(uint32))&Lua_Client::SetBoatID)
 		.def("GetBoatName", (char *(Lua_Client::*)(void))&Lua_Client::GetBoatName)
 		.def("SetBoatName", (void(Lua_Client::*)(const char *))&Lua_Client::SetBoatName)
+		.def("KeyRingRemove", (void(Lua_Client::*)(Lua_Mob, int16))&Lua_Client::KeyRingRemove)
 		.def("QuestReward", (void(Lua_Client::*)(Lua_Mob))&Lua_Client::QuestReward)
 		.def("QuestReward", (void(Lua_Client::*)(Lua_Mob, int32))&Lua_Client::QuestReward)
 		.def("QuestReward", (void(Lua_Client::*)(Lua_Mob, int32, int32))&Lua_Client::QuestReward)

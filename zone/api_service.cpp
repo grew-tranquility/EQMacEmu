@@ -424,7 +424,7 @@ Json::Value ApiGetMobListDetail(EQ::Net::WebsocketServerConnection *connection, 
 		//row["has_free_trap_slots"]        = mob->HasFreeTrapSlots();
 		row["has_mgb"]                    = mob->HasMGB();
 		//row["has_numhits"]                = mob->HasNumhits();
-		row["has_pet"]                    = mob->HasPet();
+		row["has_pet"]                    = mob->GetPet() != nullptr ? true : false;
 		row["has_pet_affinity"]           = mob->HasPetAffinity();
 		//row["has_primary_aggro"]          = mob->HasPrimaryAggro();
 		row["has_project_illusion"]       = mob->HasProjectIllusion();

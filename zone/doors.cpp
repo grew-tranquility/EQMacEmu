@@ -359,7 +359,7 @@ void Doors::HandleClick(Client* sender, uint8 trigger, bool floor_port)
 			return;
 		}
 
-		if (sender->GetPVP() != 0 && zoneguildid != GUILD_NONE || zoneguildid != GUILD_NONE && strncmp(destination_zone_name, "charasis", strlen("charasis")) == 0)
+		if (sender->GetPVP() != 0 && zoneguildid != GUILD_NONE || zoneguildid != GUILD_NONE && strncmp(destination_zone_name, "charasis", strlen("charasis")) == 0 || zoneguildid != GUILD_NONE && strncmp(destination_zone_name, "mischiefplane", strlen("mischiefplane")) == 0)
 		{
 			zoneguildid = 1;
 		}

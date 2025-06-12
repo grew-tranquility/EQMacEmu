@@ -435,6 +435,11 @@ void Client::DoZoneSuccess(ZoneChange_Struct *zc, uint16 zone_id, uint32 zone_gu
 	Mob* mypet = GetPet();
 	if (mypet && mypet->IsCharmedPet())
 		FadePetCharmBuff();
+	else
+	{
+		// depop the pet, it will be recreated in the new zone
+		DepopPetOnZone();
+	}
 
 	/* Dont clear aggro until the zone is successful */
 	entity_list.RemoveFromHateLists(this);
@@ -503,7 +508,7 @@ void Client::DoZoneMove(uint16 zone_id, uint32 zone_guild_id, float dest_x, floa
 	if (mypet && mypet->IsCharmedPet())
 		FadePetCharmBuff();
 	else
-		DepopPet();
+		DepopPetOnZone();
 
 
 	/* Dont clear aggro until the zone is successful */

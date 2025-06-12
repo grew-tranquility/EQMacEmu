@@ -309,6 +309,7 @@ public:
 	void	Trader_StartTrader();
 	void	KeyRingLoad();
 	void	KeyRingAdd(uint32 item_id);
+	void	KeyRingRemove(uint32 item_id);
 	bool	KeyRingCheck(uint32 item_id);
 	void	KeyRingList(Client* notifier);
 	bool	CheckKeyRingStage(uint16 item_id);
@@ -1024,7 +1025,7 @@ public:
 	void LoadZoneFlags(LinkedList<ZoneFlags_Struct*>* ZoneFlags);
 
 	bool CanFish();
-	void GoFish();
+	void GoFish(bool guarantee = false, bool use_bait = true);
 	void ForageItem(bool guarantee = false);
 	//Calculate vendor price modifier based on CHA: (reverse==merchant buying)
 	float CalcPriceMod(Mob* other = 0, bool reverse = false);

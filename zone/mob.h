@@ -702,6 +702,7 @@ public:
 
 	Mob* GetPet();
 	void SetPet(Mob* newpet);
+	void DepopPetOnZone(bool bOnZone = false);
 	virtual Mob* GetOwner();
 	virtual Mob* GetOwnerOrSelf();
 	Mob* GetUltimateOwner();
@@ -723,7 +724,6 @@ public:
 	inline uint16 GetOwnerID() const { return ownerid; }
 	inline virtual bool HasOwner() { if(GetOwnerID()==0){return false;} return( entity_list.GetMob(GetOwnerID()) != 0); }
 	inline virtual bool IsPet() { return(HasOwner()); }
-	inline bool HasPet() const { if(GetPetID()==0){return false;} return (entity_list.GetMob(GetPetID()) != 0);}
 	inline bool IsTempPet() const { return(_IsTempPet); }
 	inline void SetIsTempPet(bool i) { _IsTempPet = i; }
 	inline bool HasTempPetsActive() const { return(hasTempPet); }

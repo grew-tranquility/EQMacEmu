@@ -266,6 +266,7 @@ public:
 	void SetBoatID(uint32 in_boatid);
 	char* GetBoatName();
 	void SetBoatName(const char* in_boatname);
+	void KeyRingRemove(Lua_Mob target, int16 itemid);
 	void QuestReward(Lua_Mob target);
 	void QuestReward(Lua_Mob target, int32 copper);
 	void QuestReward(Lua_Mob target, int32 copper, int32 silver);

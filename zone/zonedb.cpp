@@ -2362,6 +2362,10 @@ void ZoneDatabase::SavePetInfo(Client *client)
 		// Insert new pet info
 		CharacterPetInfoRepository::InsertMany(database, current_pet_infos);
 	}
+	else
+	{
+		CharacterPetInfoRepository::DeleteWhere(database, fmt::format("char_id = {} and pet = 0", client->CharacterID()));
+	}
 
 	// insert pet buffs into database
 	if (!current_pet_buffs.empty()) {
@@ -2371,6 +2375,10 @@ void ZoneDatabase::SavePetInfo(Client *client)
 		// Insert new pet buffs
 		CharacterPetBuffsRepository::InsertMany(database, current_pet_buffs);
 	}
+	else
+	{
+		CharacterPetBuffsRepository::DeleteWhere(database, fmt::format("char_id = {} AND pet = 0", client->CharacterID()));
+	}
 
 	// insert pet inventory into database
 	if (!current_inventory.empty()) {
@@ -2379,6 +2387,10 @@ void ZoneDatabase::SavePetInfo(Client *client)
 
 		// Insert new pet inventory
 		CharacterPetInventoryRepository::InsertMany(database, current_inventory);
+	}
+	else
+	{
+		CharacterPetInventoryRepository::DeleteWhere(database, fmt::format("char_id = {} AND pet = 0", client->CharacterID()));
 	}
 
 	PetInfo& suspendedpetinfo = client->GetSuspendedPetInfo();
@@ -2450,6 +2462,10 @@ void ZoneDatabase::SavePetInfo(Client *client)
 		// Insert new pet info
 		CharacterPetInfoRepository::InsertMany(database, suspended_pet_infos);
 	}
+	else
+	{
+		CharacterPetInfoRepository::DeleteWhere(database, fmt::format("char_id = {} AND pet = 1", client->CharacterID()));
+	}
 
 	// insert pet buffs into database
 	if (!suspended_pet_buffs.empty()) {
@@ -2459,6 +2475,10 @@ void ZoneDatabase::SavePetInfo(Client *client)
 		// Insert new pet buffs
 		CharacterPetBuffsRepository::InsertMany(database, suspended_pet_buffs);
 	}
+	else
+	{
+		CharacterPetBuffsRepository::DeleteWhere(database, fmt::format("char_id = {} AND pet = 1", client->CharacterID()));
+	}
 
 	// insert pet inventory into database
 	if (!suspended_inventory.empty()) {
@@ -2467,6 +2487,10 @@ void ZoneDatabase::SavePetInfo(Client *client)
 
 		// Insert new pet inventory
 		CharacterPetInventoryRepository::InsertMany(database, suspended_inventory);
+	}
+	else
+	{
+		CharacterPetInventoryRepository::DeleteWhere(database, fmt::format("char_id = {} AND pet = 1", client->CharacterID()));
 	}
 
 }

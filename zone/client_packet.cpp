@@ -6961,6 +6961,7 @@ void Client::Handle_OP_PetCommands(const EQApplicationPacket *app)
 
 		mypet->Say_StringID(Chat::PetResponse, PET_GETLOST_STRING);
 		mypet->CastToNPC()->Depop();
+		SavePetInfo(true);
 		//mypet->Death(nullptr, 0, SPELL_UNKNOWN, SkillTigerClaw, Killed_ENV);
 
 		FadeVoiceGraft();
