@@ -54,6 +54,8 @@ struct ItemData;
 #include "questmgr.h"
 #include "zone.h"
 #include "zonedb.h"
+#include "cheat_manager.h"
+#include "../common/events/player_events.h"
 
 #ifdef _WINDOWS
 	// since windows defines these within windef.h (which windows.h include)
@@ -209,17 +211,6 @@ typedef enum {
 	ZoneToGuildZone
 } ZoneMode;
 
-typedef enum {
-	MQWarp,
-	MQWarpShadowStep,
-	MQWarpKnockBack,
-	MQWarpLight,
-	MQZone,
-	MQZoneUnknownDest,
-	MQGate,
-	MQGhost
-} CheatTypes;
-
 enum {
 	HideCorpseNone = 0,
 	HideCorpseAll = 1,
@@ -292,6 +283,8 @@ public:
 	
 	void PermaGender(uint32 gender);
 
+	std::vector<Mob *> GetRaidOrGroupOrSelf(bool clients_only = false);
+
 	float GetQuiverHaste();
 	int	GetHasteCap();
 
@@ -345,12 +338,15 @@ public:
 	void	ReturnTraderReq(const EQApplicationPacket* app,int16 traderitemcharges, int TraderSlot,uint32 price);
 	void	TradeRequestFailed(const EQApplicationPacket* app);
 	void	BuyTraderItem(TraderBuy_Struct* tbs,Client* trader,const EQApplicationPacket* app);
-	void	FinishTrade(Mob* with, bool finalizer = false, void* event_entry = nullptr);
+	void FinishTrade(
+		Mob *with,
+		bool finalizer = false,
+		void *event_entry = nullptr
+	);
 	void	SendZonePoints();
 
 	void FillSpawnStruct(NewSpawn_Struct* ns, Mob* ForWho);
 	virtual bool Process();
-	void LogMerchant(Client* player, Mob* merchant, uint32 quantity, uint32 price, const EQ::ItemData* item, bool buying);
 	void QueuePacket(const EQApplicationPacket* app, bool ack_req = true, CLIENT_CONN_STATUS = CLIENT_CONNECTINGALL, eqFilterType filter=FilterNone);
 	void FastQueuePacket(EQApplicationPacket** app, bool ack_req = true, CLIENT_CONN_STATUS = CLIENT_CONNECTINGALL);
 	void ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_skill, const char* orig_message, const char* targetname=nullptr);
@@ -381,6 +377,7 @@ public:
 	/* New PP Save Functions */
 	bool SaveCurrency(){ return database.SaveCharacterCurrency(this->CharacterID(), &m_pp); }
 	bool SaveAA();
+	bool SaveCharacterMageloStats();
 
 	inline bool ClientDataLoaded() const { return client_data_loaded; }
 	inline bool Connected() const { return (client_state == CLIENT_CONNECTED); }
@@ -401,7 +398,7 @@ public:
 	inline const EQ::InventoryProfile& GetInv() const { return m_inv; }
 	inline PetInfo& GetPetInfo() { return m_petinfo; }
 	inline PetInfo& GetSuspendedPetInfo() { return m_suspendedminion; }
-
+	const std::vector<int16> &GetInventorySlots();
 
 	bool CheckAccess(int16 iDBLevel, int16 iDefaultLevel);
 
@@ -711,7 +708,7 @@ public:
 	bool	IsInLevelRange(uint8 maxlevel);
 
 	void GoToBind(uint8 bindnum = 0);
-	void BootFromGuildInstance();
+	void BootFromGuildInstance(bool bForce = false);
 	void GoToSafeCoords(uint16 zone_id, uint32 zone_guild_id);
 	void Gate();
 	void SetBindPoint(int to_zone = -1, const glm::vec3& location = glm::vec3());
@@ -1010,7 +1007,7 @@ public:
 	bool DecreaseByID(uint32 type, uint8 amt);
 	void Escape(); //AA Escape
 	void RemoveNoRent(bool client_update = true);
-	void RemoveDuplicateLore(bool client_update = true);
+	void RemoveDuplicateLore();
 	void MoveSlotNotAllowed(bool client_update = true);
 	virtual void RangedAttack(Mob* other);
 	virtual void ThrowingAttack(Mob* other, bool CanDoubleAttack = false);
@@ -1050,21 +1047,9 @@ public:
 	//Anti-Cheat Stuff
 	uint32 m_TimeSinceLastPositionCheck;
 	float m_DistanceSinceLastPositionCheck;
-	bool m_CheatDetectMoved;
-	void SetShadowStepExemption(bool v);
-	void SetKnockBackExemption(bool v);
-	void SetPortExemption(bool v);
-	void SetSenseExemption(bool v) { m_SenseExemption = v; }
-	void SetAssistExemption(bool v) { m_AssistExemption = v; }
-	const bool IsShadowStepExempted() const { return m_ShadowStepExemption; }
-	const bool IsKnockBackExempted() const { return m_KnockBackExemption; }
-	const bool IsPortExempted() const { return m_PortExemption; }
-	const bool IsSenseExempted() const { return m_SenseExemption; }
-	const bool IsAssistExempted() const { return m_AssistExemption; }
 	const bool GetGMSpeed() const { return (gmspeed > 0); }
 	const bool GetGMInvul() const { return gminvul; }
 	void SetGmInvul(bool state) { gminvul = state; invulnerable = state; }
-	void CheatDetected(CheatTypes CheatType, float x, float y, float z);
 	const bool IsMQExemptedArea(uint32 zoneID, float x, float y, float z) const;
 	bool CanUseReport;
 
@@ -1187,6 +1172,7 @@ public:
 	uint32 trapid; //ID of trap player has triggered. This is cleared when the player leaves the trap's radius, or it despawns.
 
 	void SendMerchantEnd();
+	void CheckItemDiscoverability(uint32 item_id);
 	float GetPortHeading(uint16 newx, uint16 newy);
 	bool IsMule() { return (Admin() < 80 && m_pp.mule); }
 	void SendCancelTrade(Mob* with);
@@ -1293,6 +1279,11 @@ public:
 	inline bool InstanceBootGraceTimerExpired() { return instance_boot_grace_timer.Check(); }
 	void ShowDevToolsMenu();
 	void SendReloadCommandMessages();
+
+	CheatManager cheat_manager;
+
+	PlayerEvent::PlayerEvent GetPlayerEvent();
+	void RecordKilledNPCEvent(NPC *n);
 
 protected:
 	friend class Mob;
@@ -1592,6 +1583,9 @@ private:
 	bool InterrogateInventory_error(int16 head, int16 index, const EQ::ItemInstance* inst, const EQ::ItemInstance* parent, int depth);
 
 	void UpdateZoneChangeCount(uint32 zoneid);
+
+	void PlayerTradeEventLog(Trade *t, Trade *t2);
+	void NPCHandinEventLog(Trade *t, NPC *n);
 
 	bool clicky_override; // On AK, clickies with 0 casttime did not enforce any restrictions (level, regeant consumption, etc) 
 	uint8 active_disc;

@@ -41,13 +41,14 @@
 #include "../common/path_manager.h"
 #include "../common/zone_store.h"
 #include "../common/content/world_content_service.h"
-#include "../common/discord_manager.h"
+#include "../common/discord/discord_manager.h"
+#include "../common/events/player_event_logs.h"
 
 ChatChannelList *ChannelList;
 Clientlist *g_Clientlist;
 EQEmuLogSys LogSys;
 UCSDatabase database;
-WorldServer *worldserver = nullptr;
+WorldServerList *worldserverlist = nullptr;
 DiscordManager discord_manager;
 PathManager path;
 std::unordered_set<uint32> ipWhitelist;
@@ -55,11 +56,10 @@ std::mutex		ipMutex;
 bool bSkipFactoryAuth = true;
 
 ZoneStore zone_store;
+PlayerEventLogs player_event_logs;
 WorldContentService content_service;
 
 const ucsconfig *Config;
-
-std::string WorldShortName;
 
 uint32 ChatMessagesSent = 0;
 
@@ -93,7 +93,7 @@ void CatchSignal(int sig_num) {
 	}
 }
 
-void DiscordQueueListener() {
+void PlayerEventQueueListener() {
 	while (caught_loop == 0) {
 		discord_manager.ProcessMessageQueue();
 		Sleep(100);
@@ -123,8 +123,6 @@ int main() {
 
 	Config = ucsconfig::get(); 
 
-	WorldShortName = Config->ShortName;
-
 	LogInfo("Connecting to MySQL");
 
 	if (!database.Connect(
@@ -141,6 +139,8 @@ int main() {
 		->SetLogPath(path.GetLogPath())
 		->LoadLogDatabaseSettings()
 		->StartFileLogs();
+
+	player_event_logs.SetDatabase(&database)->Init();
 
 	char tmp[64];
 
@@ -163,14 +163,9 @@ int main() {
 
 	database.LoadChatChannels();
 
-	std::signal(SIGINT, CatchSignal);
-	std::signal(SIGTERM, CatchSignal);
-	std::signal(SIGKILL, CatchSignal);
-	std::signal(SIGSEGV, CatchSignal);
+	std::thread(PlayerEventQueueListener).detach();
 
-	std::thread(DiscordQueueListener).detach();
-
-	worldserver = new WorldServer;
+	worldserverlist = new WorldServerList();
 
 	// uncomment to simulate timed crash for catching SIGSEV
 	//	std::thread crash_test(crash_func);
@@ -187,7 +182,7 @@ int main() {
 		ipMutex.lock();
 		ipWhitelist.clear();
 		ipMutex.unlock();
-
+		worldserverlist->Process();
 		g_Clientlist->Process();
 
 		if (ChannelListProcessTimer.Check()) {

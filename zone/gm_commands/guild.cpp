@@ -26,6 +26,7 @@ void command_guild(Client* c, const Seperator* sep)
 	bool is_list = !strcasecmp(sep->arg[1], "list");
 	bool is_rename = !strcasecmp(sep->arg[1], "rename");
 	bool is_search = !strcasecmp(sep->arg[1], "search");
+	bool is_setraidenabled = !strcasecmp(sep->arg[1], "setraidenabled");
 	bool is_set = !strcasecmp(sep->arg[1], "set");
 	bool is_set_leader = !strcasecmp(sep->arg[1], "setleader");
 	bool is_set_rank = !strcasecmp(sep->arg[1], "setrank");
@@ -41,7 +42,8 @@ void command_guild(Client* c, const Seperator* sep)
 		!is_set &&
 		!is_set_leader &&
 		!is_set_rank &&
-		!is_status
+		!is_status &&
+		!is_setraidenabled
 		) {
 		SendGuildSubCommands(c);
 		return;
@@ -270,6 +272,46 @@ void command_guild(Client* c, const Seperator* sep)
 			const std::string search_criteria = sep->argplus[2];
 
 			guild_mgr.ListGuilds(c, search_criteria);
+		}
+	}
+	else if (is_setraidenabled) {
+
+		if (
+			arguments != 3 ||
+			!sep->IsNumber(3)
+			) {
+			c->Message(Chat::White, "#guild setraidenabled [Guild ID] [Value]");
+			return;
+		}
+
+		auto guild_id = (
+			sep->IsNumber(2) ?
+			std::stoul(sep->arg[2]) : GUILD_NONE
+			);
+
+		uint8 value = sep->IsNumber(3) ? std::stoul(sep->arg[3]) : false;
+		if (!guild_id) {
+			guild_id = GUILD_NONE;
+		}
+		else if (!guild_mgr.GuildExists(guild_id)) {
+			c->Message(
+				Chat::White,
+				fmt::format(
+					"Guild ID {} could not be found.",
+					guild_id
+				).c_str()
+			);
+			return;
+		}
+
+		if (c->Admin() < minStatusToEditOtherGuilds && guild_id != c->GuildID()) {
+			c->Message(Chat::White, "You cannot edit other peoples' guilds.");
+			return;
+		}
+
+		if(guild_id != GUILD_NONE)
+		{
+			guild_mgr.SetGuildRaidEnabled(guild_id, value);
 		}
 	}
 	else if (is_set) {

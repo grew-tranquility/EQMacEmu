@@ -345,7 +345,7 @@ int Mob::FindAffectSlot(Mob *caster, uint16 spell_id, int *result_slotnum, int r
 					}
 
 					if (caster != this)
-						Message_StringID(Chat::SpellFailure, ALREADY_INVIS, caster->GetCleanName());
+						Message_StringID(Chat::SpellFailure, StringID::ALREADY_INVIS, caster->GetCleanName());
 					return 0;
 				}
 			}
@@ -371,7 +371,7 @@ int Mob::FindAffectSlot(Mob *caster, uint16 spell_id, int *result_slotnum, int r
 			{
 				if (spellbonuses.Screech + new_spelldata->base[effect_slot] >= 0)
 				{
-					Message_StringID(Chat::SpellFailure, SCREECH_BUFF_BLOCK, new_spelldata->name);
+					Message_StringID(Chat::SpellFailure, StringID::SCREECH_BUFF_BLOCK, new_spelldata->name);
 					return 0;
 				}
 			}
@@ -825,7 +825,7 @@ int Mob::FindAffectSlot_PatchV1(Mob *caster, uint16 spell_id, int *result_slotnu
 			{
 				if (spellbonuses.Screech + new_spelldata->base[effect_slot] >= 0)
 				{
-					Message_StringID(Chat::SpellFailure, SCREECH_BUFF_BLOCK, new_spelldata->name);
+					Message_StringID(Chat::SpellFailure, StringID::SCREECH_BUFF_BLOCK, new_spelldata->name);
 					return 0;
 				}
 			}
@@ -1387,7 +1387,7 @@ bool Mob::AssignBuffSlot(Mob *caster, uint16 spell_id, int &buffslot, int &caste
 	if (IsBardSong(spell_id) && caster)
 	{
 		int mod = caster->GetInstrumentMod(spell_id);
-		if (mod > 10)
+		if (mod > 10 && !isdisc)
 			buffs[emptyslot].instrumentmod = mod;
 		
 		buffs[emptyslot].UpdateClient = true;

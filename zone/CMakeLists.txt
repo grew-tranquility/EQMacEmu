@@ -8,10 +8,12 @@ SET(zone_sources
 	beacon.cpp
 	bonuses.cpp
 	buffstacking.cpp
+	cheat_manager.cpp
 	client.cpp
 	client_mods.cpp
 	client_packet.cpp
 	client_process.cpp
+	combat_record.cpp
 	command.cpp
 	corpse.cpp
 	data_bucket.cpp
@@ -74,6 +76,8 @@ SET(zone_sources
 	quest_parser_collection.cpp
 	raids.cpp
 	raycast_mesh.cpp
+	sidecar_api/sidecar_api.cpp
+    	sidecar_api/loot_simulator_controller.cpp
 	spawn2.cpp
 	spawngroup.cpp
 	special_attacks.cpp
@@ -89,6 +93,7 @@ SET(zone_sources
 	waypoints.cpp
 	worldserver.cpp
 	zone.cpp
+	zone_cli.cpp
 	zone_config.cpp
 	zonedb.cpp
 	zone_event_scheduler.cpp
@@ -101,8 +106,10 @@ SET(zone_headers
 	aa.h
 	api_service.h
 	beacon.h
+	cheat_manager.h
 	client.h
 	client_packet.h
+	combat_record.h
 	command.h
 	common.h
 	corpse.h
@@ -160,6 +167,7 @@ SET(zone_headers
 	quest_parser_collection.h
 	raids.h
 	raycast_mesh.h
+	sidecar_api/sidecar_api.h
 	spawn2.h
 	spawngroup.h
 	string_ids.h
@@ -174,6 +182,7 @@ SET(zone_headers
 	zone_config.h
 	zonedb.h
 	zonedump.h
+	zone_cli.h
 	zone_reload.h
 )
 

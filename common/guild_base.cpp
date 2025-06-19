@@ -50,7 +50,7 @@ bool BaseGuildManager::LoadGuilds() {
 		return(false);
 	}
 
-	std::string query("SELECT id, name, leader, minstatus, motd, motd_setter,channel,url FROM guilds");
+	std::string query("SELECT id, name, leader, minstatus, motd, motd_setter,channel,url, raid_enabled FROM guilds");
 	std::map<uint32, GuildInfo *>::iterator res;
 
 	auto results = m_db->QueryDatabase(query);
@@ -61,7 +61,7 @@ bool BaseGuildManager::LoadGuilds() {
 	}
 
 	for (auto row=results.begin();row!=results.end();++row)
-		_CreateGuild(atoi(row[0]), row[1], atoi(row[2]), atoi(row[3]), row[4], row[5], row[6], row[7]);
+		_CreateGuild(atoi(row[0]), row[1], atoi(row[2]), atoi(row[3]), row[4], row[5], row[6], row[7], atoi(row[8]));
 
     query = "SELECT guild_id,`rank`,title,can_hear,can_speak,can_invite,can_remove,can_promote,can_demote,can_motd,can_warpeace FROM guild_ranks";
 	results = m_db->QueryDatabase(query);
@@ -109,7 +109,7 @@ bool BaseGuildManager::RefreshGuild(uint32 guild_id) {
 		return(false);
 	}
 
-	std::string query = StringFormat("SELECT name, leader, minstatus, motd, motd_setter, channel,url FROM guilds WHERE id=%lu", (unsigned long)guild_id);
+	std::string query = StringFormat("SELECT name, leader, minstatus, motd, motd_setter, channel, url, raid_enabled FROM guilds WHERE id=%lu", (unsigned long)guild_id);
 	std::map<uint32, GuildInfo *>::iterator res;
 	GuildInfo *info;
 
@@ -129,7 +129,7 @@ bool BaseGuildManager::RefreshGuild(uint32 guild_id) {
 
 	auto row = results.begin();
 
-	info = _CreateGuild(guild_id, row[0], atoi(row[1]), atoi(row[2]), row[3], row[4], row[5], row[6]);
+	info = _CreateGuild(guild_id, row[0], atoi(row[1]), atoi(row[2]), row[3], row[4], row[5], row[6], atoi(row[7]));
 
     query = StringFormat("SELECT guild_id, `rank`, title, can_hear, can_speak, can_invite, can_remove, can_promote, can_demote, can_motd, can_warpeace "
                         "FROM guild_ranks WHERE guild_id=%lu", (unsigned long)guild_id);
@@ -167,7 +167,7 @@ bool BaseGuildManager::RefreshGuild(uint32 guild_id) {
 	return true;
 }
 
-BaseGuildManager::GuildInfo *BaseGuildManager::_CreateGuild(uint32 guild_id, const char *guild_name, uint32 leader_char_id, uint8 minstatus, const char *guild_motd, const char *motd_setter, const char *Channel, const char *URL)
+BaseGuildManager::GuildInfo *BaseGuildManager::_CreateGuild(uint32 guild_id, const char *guild_name, uint32 leader_char_id, uint8 minstatus, const char *guild_motd, const char *motd_setter, const char *Channel, const char *URL, uint8 raid_enabled)
 {
 	std::map<uint32, GuildInfo *>::iterator res;
 
@@ -187,6 +187,7 @@ BaseGuildManager::GuildInfo *BaseGuildManager::_CreateGuild(uint32 guild_id, con
 	info->motd_setter = motd_setter;
 	info->url = URL;
 	info->channel = Channel;
+	info->raid_enabled = raid_enabled;
 	m_guilds[guild_id] = info;
 
 	//now setup default ranks (everything defaults to false)
@@ -399,6 +400,16 @@ bool BaseGuildManager::SetGuildMOTD(uint32 guild_id, const char* motd, const cha
 	return(true);
 }
 
+bool BaseGuildManager::SetGuildRaidEnabled(uint32 guild_id, uint8 raid_enabled) {
+	if (!DBSetGuildRaidEnabled(guild_id, raid_enabled))
+		return(false);
+
+	SendGuildRefresh(guild_id, false, true, false, false);
+
+	return(true);
+}
+
+
 bool BaseGuildManager::SetGuild(uint32 charid, uint32 guild_id, uint8 rank) {
 	if(rank > GUILD_MAX_RANK && guild_id != GUILD_NONE)
 		return(false);
@@ -473,7 +484,7 @@ uint32 BaseGuildManager::DBCreateGuild(const char* name, uint32 leader) {
 
 	//now make the guild record in our local manager.
 	//this also sets up the default ranks for us.
-	_CreateGuild(new_id, name, leader, 0, "", "", "", "");
+	_CreateGuild(new_id, name, leader, 0, "", "", "", "", 0);
 
 	//now store the resulting guild setup into the DB.
 	if(!_StoreGuildDB(new_id)) {
@@ -693,6 +704,33 @@ bool BaseGuildManager::DBSetGuildChannel(uint32 GuildID, const char* Channel)
 	Log(Logs::Detail, Logs::Guilds, "Set Channel for guild %d in the database", GuildID);
 
 	info->channel = Channel;	//update our local record.
+
+	return(true);
+}
+
+bool BaseGuildManager::DBSetGuildRaidEnabled(uint32 GuildID, uint8 RaidEnabled)
+{
+	if (m_db == nullptr)
+		return(false);
+
+	auto res = m_guilds.find(GuildID);
+
+	if (res == m_guilds.end())
+		return(false);
+
+	GuildInfo* info = res->second;
+
+	std::string query = StringFormat("UPDATE guilds SET raid_enabled=%d WHERE id=%d", RaidEnabled, GuildID);
+	auto results = m_db->QueryDatabase(query);
+
+	if (!results.Success())
+	{
+		return(false);
+	}
+
+	Log(Logs::Detail, Logs::Guilds, "Set Raid Enabled for guild %d in the database", GuildID);
+
+	info->raid_enabled = RaidEnabled;	//update our local record.
 
 	return(true);
 }
@@ -1013,14 +1051,24 @@ uint32 BaseGuildManager::GetGuildIDByName(const char *GuildName)
 	return GUILD_NONE;
 }
 
-bool BaseGuildManager::GetGuildMOTD(uint32 guild_id, char *motd_buffer, char *setter_buffer) const {
-	std::map<uint32, GuildInfo *>::const_iterator res;
+bool BaseGuildManager::GetGuildMOTD(uint32 guild_id, char* motd_buffer, char* setter_buffer) const {
+	std::map<uint32, GuildInfo*>::const_iterator res;
 	res = m_guilds.find(guild_id);
-	if(res == m_guilds.end())
+	if (res == m_guilds.end())
 		return(false);
 	strn0cpy(motd_buffer, res->second->motd.c_str(), 512);
 	strn0cpy(setter_buffer, res->second->motd_setter.c_str(), 64);
 	return(true);
+}
+
+bool BaseGuildManager::IsGuildRaidEnabled(uint32 guild_id) 
+{
+	std::map<uint32, GuildInfo *>::const_iterator res;
+	res = m_guilds.find(guild_id);
+	if(res == m_guilds.end())
+		return 0;
+
+	return res->second->raid_enabled ? true : false;
 }
 
 bool BaseGuildManager::GetGuildURL(uint32 GuildID, char *URLBuffer) const
@@ -1162,6 +1210,7 @@ BaseGuildManager::RankInfo::RankInfo() {
 
 BaseGuildManager::GuildInfo::GuildInfo() {
 	leader_char_id = 0;
+	raid_enabled = 0;
 	minstatus = 0;
 }
 

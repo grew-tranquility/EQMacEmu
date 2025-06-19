@@ -32,7 +32,11 @@
 #include "titles.h"
 #include "water_map.h"
 #include "zonedb.h"
+#include "../common/events/player_event_logs.h"
+#include "worldserver.h"
 #include "../common/repositories/criteria/content_filter_criteria.h"
+
+extern WorldServer worldserver;
 
 #include <iostream>
 
@@ -173,38 +177,37 @@ uint32 ZoneDatabase::GetZoneFishing(uint32 ZoneID, uint8 skill)
 
 	return ret;
 }
-
 //we need this function to immediately determine, after we receive OP_Fishing, if we can even try to fish, otherwise we have to wait a while to get the failure
 bool Client::CanFish() {
 
 	if (fishing_timer.Enabled()) {
-		Message_StringID(Chat::White, ALREADY_FISHING);	//You are already fishing!
+		Message_StringID(Chat::White, StringID::ALREADY_FISHING);	//You are already fishing!
 		return false;
 	}
 
 	if (m_inv.GetItem(EQ::invslot::slotCursor)) {
-		Message_StringID(Chat::Skills, FISHING_HANDS_FULL);
+		Message_StringID(Chat::Skills, StringID::FISHING_HANDS_FULL);
 		return false;
 	}
 
 	//make sure we still have a fishing pole on:
-	const EQ::ItemInstance* Pole = m_inv[EQ::invslot::slotPrimary];
+	const EQ::ItemInstance *Pole = m_inv[EQ::invslot::slotPrimary];
 	int32 bslot = m_inv.HasItemByUse(EQ::item::ItemTypeFishingBait, 1, invWhereWorn | invWherePersonal);
-	const EQ::ItemInstance* Bait = nullptr;
+	const EQ::ItemInstance *Bait = nullptr;
 	if (bslot != INVALID_INDEX) {
 		Bait = m_inv.GetItem(bslot);
 	}
 
 	if (!Pole || !Pole->IsClassCommon() || Pole->GetItem()->ItemType != EQ::item::ItemTypeFishingPole) {
 		if (m_inv.HasItemByUse(EQ::item::ItemTypeFishingPole, 1, invWhereWorn | invWherePersonal | invWhereBank | invWhereTrading | invWhereCursor))	//We have a fishing pole somewhere, just not equipped
-			Message_StringID(Chat::Skills, FISHING_EQUIP_POLE);	//You need to put your fishing pole in your primary hand.
+			Message_StringID(Chat::Skills, StringID::FISHING_EQUIP_POLE);	//You need to put your fishing pole in your primary hand.
 		else	//We don't have a fishing pole anywhere
-			Message_StringID(Chat::Skills, FISHING_NO_POLE);	//You can't fish without a fishing pole, go buy one.
+			Message_StringID(Chat::Skills, StringID::FISHING_NO_POLE);	//You can't fish without a fishing pole, go buy one.
 		return false;
 	}
 
 	if (!Bait || !Bait->IsClassCommon() || Bait->GetItem()->ItemType != EQ::item::ItemTypeFishingBait) {
-		Message_StringID(Chat::Skills, FISHING_NO_BAIT);	//You can't fish without fishing bait, go buy some.
+		Message_StringID(Chat::Skills, StringID::FISHING_NO_BAIT);	//You can't fish without fishing bait, go buy some.
 		return false;
 	}
 
@@ -228,7 +231,7 @@ bool Client::CanFish() {
 		float bestz = zone->zonemap->FindBestZ(rod_position, nullptr);
 		float len = m_Position.z - bestz;
 		if (len > line_length || len < 0.0f) {
-			Message_StringID(Chat::Skills, FISHING_LAND);
+			Message_StringID(Chat::Skills, StringID::FISHING_LAND);
 			return false;
 		}
 
@@ -240,7 +243,7 @@ bool Client::CanFish() {
 		if (!CheckLosFN(dest.x, dest.y, dest.z, 0.0f)) {
 			LogMaps("Failing to fish because of CheckLosFN");
 			// fishing into a wall to reach water on other side?
-			Message_StringID(Chat::Skills, FISHING_LAND);	//Trying to catch land sharks perhaps?
+			Message_StringID(Chat::Skills, StringID::FISHING_LAND);	//Trying to catch land sharks perhaps?
 			return false;
 		}
 
@@ -264,7 +267,7 @@ bool Client::CanFish() {
 			}
 
 			if (in_lava) {
-				Message_StringID(Chat::Skills, FISHING_LAVA);	//Trying to catch a fire elemental or something?
+				Message_StringID(Chat::Skills, StringID::FISHING_LAVA);	//Trying to catch a fire elemental or something?
 				return false;
 			}
 
@@ -274,7 +277,7 @@ bool Client::CanFish() {
 			}
 		}
 
-		Message_StringID(Chat::Skills, FISHING_LAND);
+		Message_StringID(Chat::Skills, StringID::FISHING_LAND);
 		return false;
 	}
 	return true;
@@ -330,7 +333,7 @@ void Client::GoFish(bool guarantee, bool use_bait)
 		fishing_mod = fishing_skill;
 
 	uint8 success = SKILLUP_FAILURE;
-	if (guarantee || zone->random.Int(0, 175) < fishing_mod) {
+	if (guarantee || zone->random.Int(0,175) < fishing_mod) {
 		uint32 food_id = 0;
 
 		if (zone->random.Int(0, 299) <= fishing_mod)
@@ -340,7 +343,7 @@ void Client::GoFish(bool guarantee, bool use_bait)
 
 		if (use_bait) {
 			//consume bait, should we always consume bait on success?
-			DeleteItemInInventory(bslot, 1, true);	//do we need client update?
+			DeleteItemInInventory(bslot, 1, true);    //do we need client update?
 		}
 
 		if (food_id == 0) {
@@ -354,18 +357,18 @@ void Client::GoFish(bool guarantee, bool use_bait)
 		if (inst != nullptr) {
 			if (CheckLoreConflict(inst->GetItem()))
 			{
-				Message_StringID(Chat::White, DUP_LORE);
+				Message_StringID(Chat::White, StringID::DUP_LORE);
 				safe_delete(inst);
 			}
 			else
 			{
 				if (food_item->ItemType == EQ::item::ItemTypeFood)
 				{
-					Message_StringID(Chat::Skills, FISHING_SUCCESS, food_item->Name);
+					Message_StringID(Chat::Skills, StringID::FISHING_SUCCESS, food_item->Name);
 				}
 				else
 				{
-					Message_StringID(Chat::Skills, FISHING_SUCCESS_SOMETHING);
+					Message_StringID(Chat::Skills, StringID::FISHING_SUCCESS_SOMETHING);
 				}
 
 				PushItemOnCursorWithoutQueue(inst);
@@ -375,10 +378,20 @@ void Client::GoFish(bool guarantee, bool use_bait)
 				success = SKILLUP_SUCCESS;
 			}
 
-			if (inst) {
+		if(inst) {
+				CheckItemDiscoverability(inst->GetID());
 				std::vector<std::any> args;
 				args.push_back(inst);
 				parse->EventPlayer(EVENT_FISH_SUCCESS, this, "", inst->GetID(), &args);
+
+				if (player_event_logs.IsEventEnabled(PlayerEvent::FISH_SUCCESS)) {
+					auto e = PlayerEvent::FishSuccessEvent{
+						.item_id = inst->GetItem()->ID,
+						.item_name = inst->GetItem()->Name,
+					};
+
+					RecordPlayerEventLog(PlayerEvent::FISH_SUCCESS, e);
+				}
 			}
 		}
 	}
@@ -388,27 +401,28 @@ void Client::GoFish(bool guarantee, bool use_bait)
 		if (zone->random.Int(0, 4) == 1)
 		{
 			DeleteItemInInventory(bslot, 1, true);
-			Message_StringID(Chat::Skills, FISHING_LOST_BAIT);	//You lost your bait!
-		}
-		else
+			Message_StringID(Chat::Skills, StringID::FISHING_LOST_BAIT);	//You lost your bait!
+		} 
+		else 
 		{
 			bool spilled_beer = false;
 			if (zone->random.Int(0, 15) == 1)	//give about a 1 in 15 chance to spill your beer.
 			{
 				if (SpillBeer())
 				{
-					Message_StringID(Chat::Skills, FISHING_SPILL_BEER);	//You spill your beer while bringing in your line.
+					Message_StringID(Chat::Skills, StringID::FISHING_SPILL_BEER);	//You spill your beer while bringing in your line.
 					spilled_beer = true;
 				}
 			}
 
 			if (!spilled_beer)
 			{
-				Message_StringID(Chat::Skills, FISHING_FAILED);	//You didn't catch anything.
+				Message_StringID(Chat::Skills, StringID::FISHING_FAILED);	//You didn't catch anything.
 			}
 		}
 
 		parse->EventPlayer(EVENT_FISH_FAILURE, this, "", 0);
+		RecordPlayerEventLog(PlayerEvent::FISH_FAILURE, PlayerEvent::EmptyEvent{});
 	}
 
 	//chance to break fishing pole...
@@ -416,11 +430,11 @@ void Client::GoFish(bool guarantee, bool use_bait)
 	if (fishing_skill > 49)
 		break_chance = fishing_skill;
 	if (zone->random.Int(0, break_chance) == 1) {
-		Message_StringID(Chat::Skills, FISHING_POLE_BROKE);	//Your fishing pole broke!
+		Message_StringID(Chat::Skills, StringID::FISHING_POLE_BROKE);	//Your fishing pole broke!
 		DeleteItemInInventory(EQ::invslot::slotPrimary, 0, true);
 	}
 
-	if (CheckIncreaseSkill(EQ::skills::SkillFishing, nullptr, zone->skill_difficulty[EQ::skills::SkillFishing].difficulty), success)
+	if(CheckIncreaseSkill(EQ::skills::SkillFishing, nullptr, zone->skill_difficulty[EQ::skills::SkillFishing].difficulty[GetClass()]), success)
 	{
 		if (title_manager.IsNewTradeSkillTitleAvailable(EQ::skills::SkillFishing, GetRawSkill(EQ::skills::SkillFishing)))
 			NotifyNewTitlesAvailable();
@@ -436,7 +450,7 @@ void Client::ForageItem(bool guarantee) {
 	if (guarantee || zone->random.Int(0, 199) < skill_level)
 	{
 		uint32 foragedfood = 0;
-		uint32 stringid = FORAGE_NOEAT;
+		uint32 stringid = StringID::FORAGE_NOEAT;
 
 		if (RuleB(Character, ForageNeedFoodorDrink))
 		{
@@ -477,7 +491,7 @@ void Client::ForageItem(bool guarantee) {
 				else
 				{
 					// we already have this item on the cursor - so stop sending it here.
-					Message_StringID(Chat::Skills, FORAGE_FAILED);
+					Message_StringID(Chat::Skills, StringID::FORAGE_FAILED);
 					return;
 				}
 			}
@@ -490,23 +504,23 @@ void Client::ForageItem(bool guarantee) {
 			Log(Logs::General, Logs::Error, "nullptr returned from database.GetItem (%d) in ClientForageItem", foragedfood);
 			return;
 		}
-
-		if (foragedfood == 13106)
-			stringid = FORAGE_GRUBS;
+		
+		if(foragedfood == 13106)
+			stringid = StringID::FORAGE_GRUBS;
 		else
 		{
 			switch (food_item->ItemType)
 			{
-			case EQ::item::ItemTypeFood:
-				stringid = FORAGE_FOOD;
-				break;
+				case EQ::item::ItemTypeFood:
+					stringid = StringID::FORAGE_FOOD;
+					break;
 
-			case EQ::item::ItemTypeDrink:
-				if (strstr(food_item->Name, "Water"))
-					stringid = FORAGE_WATER;
-				else
-					stringid = FORAGE_DRINK;
-				break;
+				case EQ::item::ItemTypeDrink:
+					if(strstr(food_item->Name, "Water"))
+						stringid = StringID::FORAGE_WATER;
+					else
+						stringid = StringID::FORAGE_DRINK;
+					break;
 
 			default:
 				break;
@@ -519,7 +533,7 @@ void Client::ForageItem(bool guarantee) {
 			// check to make sure it isn't a foraged lore item
 			if (CheckLoreConflict(inst->GetItem()))
 			{
-				Message_StringID(Chat::White, DUP_LORE);
+				Message_StringID(Chat::White, StringID::DUP_LORE);
 				safe_delete(inst);
 			}
 			else
@@ -534,6 +548,14 @@ void Client::ForageItem(bool guarantee) {
 				std::vector<std::any> args;
 				args.push_back(inst);
 				parse->EventPlayer(EVENT_FORAGE_SUCCESS, this, "", inst->GetID(), &args);
+
+				if (player_event_logs.IsEventEnabled(PlayerEvent::FORAGE_SUCCESS)) {
+					auto e = PlayerEvent::ForageSuccessEvent{
+						.item_id = inst->GetItem()->ID,
+						.item_name = inst->GetItem()->Name
+					};
+					RecordPlayerEventLog(PlayerEvent::FORAGE_SUCCESS, e);
+				}
 			}
 
 			success = SKILLUP_SUCCESS;
@@ -541,11 +563,12 @@ void Client::ForageItem(bool guarantee) {
 	}
 	else
 	{
-		Message_StringID(Chat::Skills, FORAGE_FAILED);
+		Message_StringID(Chat::Skills, StringID::FORAGE_FAILED);
 		parse->EventPlayer(EVENT_FORAGE_FAILURE, this, "", 0);
+		RecordPlayerEventLog(PlayerEvent::FORAGE_FAILURE, PlayerEvent::EmptyEvent{});
 	}
 
-	CheckIncreaseSkill(EQ::skills::SkillForage, nullptr, zone->skill_difficulty[EQ::skills::SkillForage].difficulty, success);
+	CheckIncreaseSkill(EQ::skills::SkillForage, nullptr, zone->skill_difficulty[EQ::skills::SkillForage].difficulty[GetClass()], success);
 
 }
 

@@ -221,14 +221,14 @@ void Doors::HandleClick(Client* sender, uint8 trigger, bool floor_port)
 			if ((zone->random.Int(0, 49) + uskill) >= (zone->random.Int(0, 49) + 1)) {
 				Log(Logs::General, Logs::Traps, "Door Trap %d is disarmed.", door_id);
 				success = SKILLUP_SUCCESS;
-				sender->Message_StringID(Chat::Skills, DISARMED_TRAP);
+				sender->Message_StringID(Chat::Skills, StringID::DISARMED_TRAP);
 				move_door_packet->action = DOOR_RESET_TRAP;
 			} else {
-				sender->Message_StringID(Chat::Skills, FAILED_DISARM_TRAP);
+				sender->Message_StringID(Chat::Skills, StringID::FAILED_DISARM_TRAP);
 				sender->CommonBreakInvisible();
 			}
 
-			sender->CheckIncreaseSkill(EQ::skills::SkillDisarmTraps, nullptr, zone->skill_difficulty[EQ::skills::SkillDisarmTraps].difficulty, success);
+			sender->CheckIncreaseSkill(EQ::skills::SkillDisarmTraps, nullptr, zone->skill_difficulty[EQ::skills::SkillDisarmTraps].difficulty[sender->GetClass()], success);
 		} else {
 			sender->CommonBreakInvisible();
 		}
@@ -356,6 +356,12 @@ void Doors::HandleClick(Client* sender, uint8 trigger, bool floor_port)
 		if (sender->GuildID() == 1 && zoneguildid != GUILD_NONE && zoneguildid != sender->GuildID())
 		{
 			sender->Message(Chat::Red, "You are unable to enter a guild instance that isn't your own because you are part of Guild < >.");
+			return;
+		}
+
+		if (guild_zone_door && zoneguildid > 1 && zoneguildid != GUILD_NONE && !guild_mgr.IsGuildRaidEnabled(zoneguildid))
+		{
+			sender->Message(Chat::Red, "You are unable to enter a guild instance as you haven't contacted customer support to enable it. Please contact us via #petition in Discord to gain access.");
 			return;
 		}
 
@@ -524,7 +530,7 @@ bool Doors::DoorKeyCheck(Client* sender, uint32& key)
 		// a key is required or the door is locked but can be picked or both
 		if (sender->GetGM()) {
 			// GM can always open locks
-			sender->Message_StringID(Chat::LightBlue, DOORS_GM);
+			sender->Message_StringID(Chat::LightBlue, StringID::DOORS_GM);
 			return true;
 		} else if (player_key) {	// they have something they are trying to open it with
 			if (required_key_item && (required_key_item == player_key) || alternate_key_item && (alternate_key_item == player_key)) {
@@ -552,20 +558,20 @@ bool Doors::DoorKeyCheck(Client* sender, uint32& key)
 
 					if (GetLockpick() <= modskill) {
 						if (!IsDoorOpen()) {
-							sender->CheckIncreaseSkill(EQ::skills::SkillPickLock, nullptr, zone->skill_difficulty[EQ::skills::SkillPickLock].difficulty);
+							sender->CheckIncreaseSkill(EQ::skills::SkillPickLock, nullptr, zone->skill_difficulty[EQ::skills::SkillPickLock].difficulty[sender->GetClass()]);
 						}
-						sender->Message_StringID(Chat::LightBlue, DOORS_SUCCESSFUL_PICK);
+						sender->Message_StringID(Chat::LightBlue, StringID::DOORS_SUCCESSFUL_PICK);
 						return true;
 					} else {
-						sender->Message_StringID(Chat::LightBlue, DOORS_INSUFFICIENT_SKILL);
+						sender->Message_StringID(Chat::LightBlue, StringID::DOORS_INSUFFICIENT_SKILL);
 						return false;
 					}
 				} else {
-					sender->Message_StringID(Chat::LightBlue, DOORS_NO_PICK);
+					sender->Message_StringID(Chat::LightBlue, StringID::DOORS_NO_PICK);
 					return false;
 				}
 			} else {
-				sender->Message_StringID(Chat::LightBlue, DOORS_CANT_PICK);
+				sender->Message_StringID(Chat::LightBlue, StringID::DOORS_CANT_PICK);
 				return false;
 			}
 		} else {	// locked door and nothing to open it with
@@ -581,7 +587,7 @@ bool Doors::DoorKeyCheck(Client* sender, uint32& key)
 				key = key_ring;
 				return true;
 			} else {
-				sender->Message_StringID(Chat::LightBlue, DOORS_LOCKED);
+				sender->Message_StringID(Chat::LightBlue, StringID::DOORS_LOCKED);
 				return false;
 			}
 		}

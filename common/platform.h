@@ -16,12 +16,15 @@ enum EQEmuExePlatform
 	ExePlatformSharedMemory,
 	ExePlatformClientImport,
 	ExePlatformClientExport,
-	ExePlatformTests
+	ExePlatformTests,
+	ExePlatformZoneSidecar
 };
 
 void RegisterExecutablePlatform(EQEmuExePlatform p);
 const EQEmuExePlatform& GetExecutablePlatform();
 int GetExecutablePlatformInt();
 std::string GetPlatformName();
+bool IsWorld();
+bool IsQueryServ();
 
 #endif

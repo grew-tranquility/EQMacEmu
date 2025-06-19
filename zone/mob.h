@@ -28,6 +28,7 @@
 #include "aa.h"
 #include "../common/light_source.h"
 #include "../common/emu_constants.h"
+#include "combat_record.h"
 
 #include <any>
 #include <set>
@@ -247,7 +248,7 @@ public:
 		uint32 inventory_slot = 0xFFFFFFFF, int16 resist_adjust = 0, bool isproc = false, bool isrecourse=false, int recourse_level=-1);
 	virtual bool SpellOnTarget(uint16 spell_id, Mob* spelltar, bool reflect = false,
 		bool use_resist_adjust = false, int16 resist_adjust = 0, bool isproc = false, uint16 ae_caster_id = 0, bool isrecourse=false, int spell_level=-1);
-	virtual bool SpellEffect(Mob* caster, uint16 spell_id, int buffslot, int caster_level, float partial = 100);
+	virtual bool SpellEffect(Mob* caster, uint16 spell_id, int buffslot, int caster_level, float partial, bool current_buff_refresh);
 	virtual bool DetermineSpellTargets(uint16 spell_id, Mob *&spell_target, Mob *&ae_center,
 		CastAction_type &CastAction, bool isproc = false, EQ::spells::CastingSlot slot = EQ::spells::CastingSlot::Item);
 	virtual bool CheckFizzle(uint16 spell_id);
@@ -414,6 +415,18 @@ public:
 	inline virtual int32 GetMaxDR() const { return 255; }
 	inline virtual int32 GetMaxCR() const { return 255; }
 	inline virtual int32 GetMaxFR() const { return 255; }
+	void SetSTR(int32 STR);
+	void SetSTA(int32 STA);
+	void SetDEX(int32 DEX);
+	void SetAGI(int32 AGI);
+	void SetINT(int32 INT);
+	void SetWIS(int32 WIS);
+	void SetCHA(int32 CHA);
+	void SetMR(int32 MR);
+	void SetFR(int32 FR);
+	void SetDR(int32 DR);
+	void SetPR(int32 PR);
+	void SetCR(int32 CR);
 	inline int32 GetHP() const { return cur_hp; }
 	inline int32 GetMaxHP() const { return max_hp; }
 	virtual int32 CalcMaxHP(bool unbuffed = false);
@@ -641,7 +654,7 @@ public:
 	inline void Silence(bool newval) { silenced = newval; }
 	inline void Amnesia(bool newval) { amnesiad = newval; }
 	NPC *CreateTemporaryPet(const NPCType* npc_type, uint32 pet_duration_seconds, uint32 target_id, bool followme, bool sticktarg, glm::vec4 position);
-	void TemporaryPets(uint16 spell_id, Mob *target, const char *name_override = nullptr, uint32 duration_override = 0, bool followme=true, bool sticktarg=false);
+	void TemporaryPets(uint16 spell_id, Mob *target, const char *name_override = nullptr, uint32 duration_override = 0, bool followme=true, bool sticktarg=false, const char *pettype_override = nullptr);
 	void CopyWakeCorpse(NPCType *make_npc, Corpse *CorpseToUse);
 	void Spin();
 	void Kill();
@@ -1072,7 +1085,6 @@ protected:
 	uint32 scalerate;
 	Buffs_Struct *buffs;
 	uint32 current_buff_count;
-	bool current_buff_refresh;
 	StatBonuses itembonuses;
 	StatBonuses spellbonuses;
 	StatBonuses aabonuses;
@@ -1231,6 +1243,12 @@ protected:
 	bool pseudo_rooted;
 	glm::vec3 last_dest;
 
+	CombatRecord m_combat_record{};
+public:
+	const CombatRecord &GetCombatRecord() const;
+
+protected:
+
 	// Bind wound
 	Timer bindwound_timer;
 	uint16 bindwound_target_id;
@@ -1328,6 +1346,8 @@ protected:
 
 	uint16 instillDoubtTargetID;
 	Timer instillDoubtStageTimer;
+
+
 
 private:
 

@@ -44,6 +44,8 @@ public:
 	bool	RenameGuild(uint32 guild_id, const char* name);
 	bool	SetGuildMOTD(uint32 guild_id, const char* motd, const char *setter);
 
+	bool SetGuildRaidEnabled(uint32 guild_id, uint8 raid_enabled);
+
 	//character edit actions
 	bool	SetGuildLeader(uint32 guild_id, uint32 leader_char_id);
 	bool	SetGuild(uint32 charid, uint32 guild_id, uint8 rank);
@@ -70,6 +72,7 @@ public:
 	bool IsCharacterInGuild(uint32 character_id, uint32 guild_id = 0);
 	bool	GetGuildNameByID(uint32 guild_id, std::string &into) const;
 	uint32	GetGuildIDByName(const char *GuildName);
+	bool	IsGuildRaidEnabled(uint32 guild_id);
 	uint32 GetGuildIDByCharacterID(uint32 character_id);
 	bool	IsGuildLeader(uint32 guild_id, uint32 char_id) const;
 	uint8	GetDisplayedRank(uint32 guild_id, uint8 rank, uint32 char_id) const;
@@ -101,6 +104,7 @@ protected:
 	bool	DBSetGuildMOTD(uint32 guild_id, const char* motd, const char *setter);
 	bool	DBSetGuildURL(uint32 GuildID, const char* URL);
 	bool	DBSetGuildChannel(uint32 GuildID, const char* Channel);
+	bool	DBSetGuildRaidEnabled(uint32 GuildID, uint8 RaidEnabled);
 	bool	DBSetGuild(uint32 charid, uint32 guild_id, uint8 rank);
 	bool	DBSetGuildRank(uint32 charid, uint8 rank);
 	bool	DBSetBankerFlag(uint32 charid, bool is_banker);
@@ -125,6 +129,7 @@ protected:
 		std::string motd_setter;
 		std::string url;
 		std::string channel;
+		uint8 raid_enabled;
 
 		uint32 leader_char_id;
 		uint8 minstatus;
@@ -137,7 +142,7 @@ protected:
 	Database *m_db;	//we do not own this
 
 	bool _StoreGuildDB(uint32 guild_id);
-	GuildInfo *_CreateGuild(uint32 guild_id, const char *guild_name, uint32 account_id, uint8 minstatus, const char *guild_motd, const char *motd_setter, const char *Channel, const char *URL);
+	GuildInfo *_CreateGuild(uint32 guild_id, const char *guild_name, uint32 account_id, uint8 minstatus, const char *guild_motd, const char *motd_setter, const char *Channel, const char *URL, uint8 raid_enabled);
 	uint32 _GetFreeGuildID();
 };
 

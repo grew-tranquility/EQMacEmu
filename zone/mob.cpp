@@ -396,7 +396,6 @@ Mob::Mob(const char* in_name,
 	npc_damage = 0;
 	gm_damage = 0;
 	PacifyImmune = false;
-	current_buff_refresh = false;
 	temporary_pets_effect = nullptr;
 	best_z_fail_count = 0;
 
@@ -2565,7 +2564,7 @@ void Mob::Say(const char *format, ...)
 		talker = this;
 
 	entity_list.MessageClose_StringID(talker, false, RuleI(Range, Say), 10,
-		GENERIC_SAY, GetCleanName(), buf);
+		StringID::GENERIC_SAY, GetCleanName(), buf);
 }
 
 //
@@ -2578,7 +2577,7 @@ void Mob::Say_StringID(uint32 string_id, const char *message3, const char *messa
 	snprintf(string_id_str, 10, "%d", string_id);
 
 	entity_list.MessageClose_StringID(this, false, RuleI(Range, Say), 10,
-		GENERIC_STRINGID_SAY, GetCleanName(), string_id_str, message3, message4, message5,
+		StringID::GENERIC_STRINGID_SAY, GetCleanName(), string_id_str, message3, message4, message5,
 		message6, message7, message8, message9
 	);
 }
@@ -2590,7 +2589,7 @@ void Mob::Say_StringID(uint32 type, uint32 string_id, const char *message3, cons
 	snprintf(string_id_str, 10, "%d", string_id);
 
 	entity_list.MessageClose_StringID(this, false, RuleI(Range, Say), type,
-		GENERIC_STRINGID_SAY, GetCleanName(), string_id_str, message3, message4, message5,
+		StringID::GENERIC_STRINGID_SAY, GetCleanName(), string_id_str, message3, message4, message5,
 		message6, message7, message8, message9
 	);
 }
@@ -2609,7 +2608,7 @@ void Mob::Shout(const char *format, ...)
 		message_type = Chat::White;
 
 	entity_list.Message_StringID(this, false, message_type,
-		GENERIC_SHOUT, GetCleanName(), buf);
+		StringID::GENERIC_SHOUT, GetCleanName(), buf);
 }
 
 void Mob::Emote(const char *format, ...)
@@ -2622,7 +2621,7 @@ void Mob::Emote(const char *format, ...)
 	va_end(ap);
 
 	entity_list.MessageClose_StringID(this, false, RuleI(Range, Emote), 10,
-		GENERIC_EMOTE, GetCleanName(), buf);
+		StringID::GENERIC_EMOTE, GetCleanName(), buf);
 }
 
 const char *Mob::GetCleanName()
@@ -2803,7 +2802,7 @@ bool Mob::ExecWeaponProc(const EQ::ItemInstance *inst, uint16 spell_id, Mob *on)
 
 	if (IsSilenced())
 	{
-		Message_StringID(Chat::SpellFailure, SILENCED_STRING);
+		Message_StringID(Chat::SpellFailure, StringID::SILENCED_STRING);
 		return false;
 	}
 
@@ -3077,7 +3076,53 @@ void Mob::Teleport(const glm::vec4& pos)
 	mMovementManager->Teleport(this, pos.x, pos.y, pos.z, pos.w);
 }
 
+void Mob::SetSTR(int32 STR) {
+	this->STR = STR;
+}
 
+void Mob::SetSTA(int32 STA) {
+	this->STA = STA;
+}
+
+void Mob::SetDEX(int32 DEX) {
+	this->DEX = DEX;
+}
+
+void Mob::SetAGI(int32 AGI) {
+	this->AGI = AGI;
+}
+
+void Mob::SetINT(int32 INT) {
+	this->INT = INT;
+}
+
+void Mob::SetWIS(int32 WIS) {
+	this->WIS = WIS;
+}
+
+void Mob::SetCHA(int32 CHA) {
+	this->CHA = CHA;
+}
+
+void Mob::SetMR(int32 MR) {
+	this->MR = MR;
+}
+
+void Mob::SetFR(int32 FR) {
+	this->FR = FR;
+}
+
+void Mob::SetDR(int32 DR) {
+	this->DR = DR;
+}
+
+void Mob::SetPR(int32 PR) {
+	this->PR = PR;
+}
+
+void Mob::SetCR(int32 CR) {
+	this->CR = CR;
+}
 
 float Mob::GetDefaultRaceSize() const {
 	return GetRaceGenderDefaultHeight(race, gender);
@@ -3405,7 +3450,7 @@ bool Mob::DoKnockback(Mob *caster, float pushback, float pushup, bool send_packe
 	{
 		if (IsClient())
 		{
-			CastToClient()->SetKnockBackExemption(true);
+			CastToClient()->cheat_manager.SetExemptStatus(KnockBack, true);
 		}
 		else
 		{
@@ -3453,7 +3498,7 @@ bool Mob::CombatPush(Mob* attacker, float pushback)
 		if(IsClient())
 		{
 			self_update = 1;
-			CastToClient()->SetKnockBackExemption(true);
+			CastToClient()->cheat_manager.SetExemptStatus(KnockBack, true);
 		}
 
 		GMMove(m_Position.x, m_Position.y, m_Position.z, m_Position.w);
@@ -5188,7 +5233,7 @@ void Mob::PurgePoison(Client* caster)
 			if (effect_value >= static_cast<int>(buffs[j].counters))
 			{
 				if (caster)
-					caster->Message_StringID(Chat::Spells, TARGET_CURED);
+					caster->Message_StringID(Chat::Spells, StringID::TARGET_CURED);
 				effect_value -= buffs[j].counters;
 				buffs[j].counters = 0;
 				BuffFadeBySlot(j);
@@ -5400,7 +5445,7 @@ void Mob::EndShield()
 {
 	if (GetShieldTarget())
 	{
-		entity_list.MessageClose_StringID(this, false, 100, 0, END_SHIELDING, GetCleanName(), GetShieldTarget()->GetCleanName());
+		entity_list.MessageClose_StringID(this, false, 100, 0, StringID::END_SHIELDING, GetCleanName(), GetShieldTarget()->GetCleanName());
 		GetShieldTarget()->SetShielder(nullptr);
 		SetShieldTarget(nullptr);
 		shield_timer.Disable();
@@ -5451,7 +5496,7 @@ void Mob::StartShield(Mob* mob)
 	if (!mob || mob->IsCorpse())
 		return;
 
-	entity_list.MessageClose_StringID(this, false, 100, 0, START_SHIELDING, mob->GetCleanName(), GetCleanName());
+	entity_list.MessageClose_StringID(this, false, 100, 0, StringID::START_SHIELDING, mob->GetCleanName(), GetCleanName());
 
 	SetShieldTarget(mob);
 	mob->SetShielder(this);
@@ -5616,10 +5661,21 @@ void Mob::SetRandomFeatures()
 
 void Mob::SetHP(int32 hp)
 {
-	if (hp >= max_hp)
-		cur_hp = max_hp; 
-	else 
-		cur_hp = hp;
+	if (hp >= max_hp) {
+		cur_hp = max_hp;
+		return;
+	}
+
+	if (m_combat_record.InCombat()) {
+		m_combat_record.ProcessHPEvent(hp, cur_hp);
+	}
+
+	cur_hp = hp;
+}
+
+const CombatRecord& Mob::GetCombatRecord() const
+{
+	return m_combat_record;
 }
 
 void Mob::AddAllClientsToEngagementRecords()

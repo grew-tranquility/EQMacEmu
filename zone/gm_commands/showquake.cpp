@@ -11,27 +11,20 @@ void command_showquake(Client *c, const Seperator *sep)
 		return;
 	}
 
-	if (c->GuildRank() == 0)
+	int64 curTime = Timer::GetTimeSeconds();
+	int64 nextQuakeTime = zone ? zone->cached_quake_struct.next_start_timestamp : 0;
+	if (zone && zone->cached_quake_struct.quake_type == QuakeDisabled || zone && nextQuakeTime == 0 || zone && nextQuakeTime - curTime > 0)
 	{
-		c->Message(Chat::White, "You must be an officer rank or higher to use this command.");
-		return;
+		//Load the next quake time
+		database.LoadQuakeData(zone->cached_quake_struct);
 	}
 
-	if (zone)
+	if (nextQuakeTime - curTime > 0)
 	{
-		ServerEarthquakeImminent_Struct quake_struct;
-		memset(&quake_struct, 0, sizeof(ServerEarthquakeImminent_Struct));
-		database.LoadQuakeData(quake_struct);
-		int64 nextQuakeTime = quake_struct.next_start_timestamp;
-		int64 curTime = Timer::GetTimeSeconds();
-
-		if (nextQuakeTime - curTime > 0)
-		{
-			std::string time_str = "The next earthquake will begin in ";
-			time_str += Strings::SecondsToTime(nextQuakeTime - curTime);
-			time_str += "";
-			c->Message(Chat::Yellow, time_str.c_str());
-		}
+		std::string time_str = "The next earthquake will begin in ";
+		time_str += Strings::SecondsToTime(nextQuakeTime - curTime);
+		time_str += "";
+		c->Message(Chat::Yellow, time_str.c_str());
 	}
 }
 

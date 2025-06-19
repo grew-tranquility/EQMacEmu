@@ -95,7 +95,7 @@ struct ZoneEXPModInfo {
 };
 
 struct SkillDifficulty {
-	float	difficulty;
+	float	difficulty[63];
 	char	name[32];
 };
 
@@ -313,6 +313,8 @@ public:
 	std::vector<GridRepository::Grid> grids;
 	std::vector<GridEntriesRepository::GridEntries> grid_entries;
 
+	std::vector<uint32> discovered_items;
+
 	time_t	weather_timer;
 	Timer  hot_reload_timer;
 
@@ -320,6 +322,7 @@ public:
 	uint8	zone_weather;
 
 	ServerEarthquakeImminent_Struct last_quake_struct;
+	ServerEarthquakeImminent_Struct cached_quake_struct;
 	Timer*	EndQuake_Timer;
 
 	uint8 loglevelvar;

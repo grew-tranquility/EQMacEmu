@@ -18,14 +18,13 @@
 
 #include "../common/global_define.h"
 #include "../common/eqemu_logsys.h"
-#include "../common/zone_store.h"
+#include "string_ids.h"
 #include "../common/strings.h"
-
 #include "quest_parser_collection.h"
 #include "worldserver.h"
 #include "zonedb.h"
-#include "queryserv.h"
-#include "string_ids.h"
+#include "../common/events/player_event_logs.h"
+#include "../common/repositories/character_corpse_items_repository.h"
 
 extern WorldServer worldserver;
 extern QueryServ* QServ;
@@ -190,10 +189,20 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 
 	// make sure the item exists
 	if(item == nullptr) {
-		Message(Chat::Red, "Item %u does not exist.", item_id);
-		Log(Logs::Detail, Logs::Inventory, "Player %s on account %s attempted to create an item with an invalid id.\n(Item: %u)\n",
-			GetName(), account_name, item_id);
-
+		Message(
+			Chat::Red,
+			fmt::format(
+				"Item {} does not exist.",
+				item_id
+			).c_str()
+		);
+		LogInventory(
+			"Player [{}] on account [{}] attempted to create an item with an invalid id.\n"
+			"(Item [{}])\n",
+			GetName(), 
+			account_name, 
+			item_id
+		);
 		return false;
 	} 
 	// check that there is not a lore conflict between base item and existing inventory
@@ -214,9 +223,15 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 	// check to make sure we are a GM if the item is GM-only
 	else if(item->GMFlag == -1 && this->Admin() < RuleI(GM, MinStatusToUseGMItem)) {
 		Message(Chat::Red, "You are not a GM or do not have the status to summon this item.");
-		Log(Logs::Detail, Logs::Inventory, "Player %s on account %s attempted to create a GM-only item with a status of %i.\n(Item: %u, GMFlag: %u)\n",
-			GetName(), account_name, this->Admin(), item->ID, item->GMFlag);
-
+		LogInventory(
+			"Player [{}] on account [{}] attempted to create a GM-only item with a status of [{}].\n"
+			"Item: [{}], GMFlag: [{}].\n",
+			GetName(), 
+			account_name, 
+			this->Admin(), 
+			item->ID, 
+			item->GMFlag
+		);
 		return false;
 	}
 
@@ -226,30 +241,23 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 
 	// validation passed..so, set the quantity and create the actual item
 
-	if(quantity < 0)
-	{
+	if(quantity < 0) {
 		quantity = 1;
 	}
-	else if (quantity == 0)
-	{
-		if(database.ItemQuantityType(item_id) == EQ::item::Quantity_Normal)
-		{ 
+	else if (quantity == 0) {
+		if(database.ItemQuantityType(item_id) == EQ::item::Quantity_Normal) { 
 			quantity = 1;
 		}
-		else if(database.ItemQuantityType(item_id) == EQ::item::Quantity_Charges)
-		{
+		else if(database.ItemQuantityType(item_id) == EQ::item::Quantity_Charges) {
 			if(!force_charges)
 				quantity = item->MaxCharges;
 		}
-		else if(database.ItemQuantityType(item_id) == EQ::item::Quantity_Stacked)
-		{
+		else if(database.ItemQuantityType(item_id) == EQ::item::Quantity_Stacked) {
 			//If no value is set coming from a quest method, only summon a single item.
-			if(to_slot == EQ::legacy::SLOT_QUEST)
-			{
+			if(to_slot == EQ::legacy::SLOT_QUEST) {
 				quantity = 1;
 			}
-			else
-			{
+			else {
 				quantity = item->StackSize;
 			}
 		}
@@ -261,8 +269,13 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 	if(inst == nullptr) {
 		Message(Chat::Red, "An unknown server error has occurred and your item was not created.");
 		// this goes to logfile since this is a major error
-		Log(Logs::General, Logs::Error, "Player %s on account %s encountered an unknown item creation error.\n(Item: %u)\n",
-			GetName(), account_name, item->ID);
+		LogError(
+			"Player [{}] on account [{}] encountered an unknown item creation error.\n"
+			"Item: [{}]\n",
+			GetName(), 
+			account_name, 
+			item->ID
+		);
 
 		return false;
 	}
@@ -285,20 +298,16 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 	}
 
 	//We're coming from a quest method.
-	if(to_slot == EQ::legacy::SLOT_QUEST)
-	{
+	if(to_slot == EQ::legacy::SLOT_QUEST) {
 		bool stacking = TryStacking(inst);
 		//If we were able to stack, there is no need to continue on as we're set.
-		if(stacking)
-		{
+		if(stacking) {
 			safe_delete(inst);
 			return true;
 		}
-		else
-		{
+		else {
 			bool bag = false;
-			if(inst->IsType(EQ::item::ItemClassBag))
-			{
+			if(inst->IsType(EQ::item::ItemClassBag)) {
 				bag = true;
 			}
 			to_slot = m_inv.FindFreeSlot(bag, true, item->Size);
@@ -315,14 +324,23 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 					safe_delete(inst);
 					return true;
 				}
-				else if(m_inv.GetItem(EQ::invslot::slotCursor) != nullptr || to_slot == INVALID_INDEX)
-				{
+				else if(m_inv.GetItem(EQ::invslot::slotCursor) != nullptr || to_slot == INVALID_INDEX) {
 					CreateGroundObject(inst, glm::vec4(GetX(), GetY(), GetZ(), 0), RuleI(Groundspawns, FullInvDecayTime), true);
 					safe_delete(inst);
 					return true;
 				}
 			}
 		}
+	}
+
+	if (player_event_logs.IsEventEnabled(PlayerEvent::ITEM_CREATION)) {
+		auto e = PlayerEvent::ItemCreationEvent{};
+		e.item_id = item->ID;
+		e.item_name = item->Name;
+		e.to_slot = to_slot;
+		e.charges = quantity;
+
+		RecordPlayerEventLog(PlayerEvent::ITEM_CREATION, e);
 	}
 
 	if (to_slot == EQ::invslot::slotCursor) {
@@ -334,10 +352,7 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 	safe_delete(inst);
 
 	// discover item
-	if((RuleB(Character, EnableDiscoveredItems)) && !GetGM()) {
-		if(!IsDiscovered(item_id))
-			DiscoverItem(item_id);
-	}
+	CheckItemDiscoverability(item_id);
 
 	return true;
 }
@@ -345,19 +360,50 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 // Drop item from inventory to ground (generally only dropped from SlotCursor)
 void Client::DropItem(int16 slot_id)
 {
+	LogInventory(
+		"[{}] (char_id: [{}]) Attempting to drop item from slot [{}] on the ground",
+		GetCleanName(),
+		CharacterID(),
+		slot_id
+	);
+
 	if(GetInv().CheckNoDrop(slot_id) && RuleI(World, FVNoDropFlag) == 0 ||
 		RuleI(Character, MinStatusForNoDropExemptions) < Admin() && RuleI(World, FVNoDropFlag) == 2) {
-		database.SetHackerFlag(this->AccountName(), this->GetCleanName(), "Tried to drop an item on the ground that was nodrop!");
+		auto invalid_drop = m_inv.GetItem(slot_id);
+
+		std::string message = fmt::format(
+			"Tried to drop an item on the ground that was no-drop! item_name [{}] item_id ({})",
+			invalid_drop->GetItem()->Name,
+			invalid_drop->GetItem()->ID
+		);
+
+		invalid_drop = nullptr;
+		RecordPlayerEventLog(PlayerEvent::POSSIBLE_HACK, PlayerEvent::PossibleHackEvent{ .message = message });
 		GetInv().DeleteItem(slot_id);
 		return;
 	}
 
 	// Take control of item in client inventory
-	EQ::ItemInstance *inst = m_inv.PopItem(slot_id);
+	auto *inst = m_inv.PopItem(slot_id);
 	if(inst) {
-		int i = parse->EventItem(EVENT_DROP_ITEM, this, inst, nullptr, "", 0);
-		if(i != 0) {
-			safe_delete(inst);
+		int i = 0;
+
+		if (player_event_logs.IsEventEnabled(PlayerEvent::DROPPED_ITEM)) {
+			auto e = PlayerEvent::DroppedItemEvent{
+				.item_id = inst->GetID(),
+				.item_name = inst->GetItem()->Name,
+				.slot_id = slot_id,
+				.charges = (uint32)inst->GetCharges()
+			};
+			RecordPlayerEventLog(PlayerEvent::DROPPED_ITEM, e);
+		}
+
+		if (parse->ItemHasQuestSub(inst, EVENT_DROP_ITEM)) {
+			parse->EventItem(EVENT_DROP_ITEM, this, inst, nullptr, "", slot_id);
+			if (i != 0) {
+				LogInventory("Item drop handled by [EVENT_DROP_ITEM]");
+				safe_delete(inst);
+			}
 		}
 	} else {
 		// Item doesn't exist in inventory!
@@ -461,7 +507,7 @@ void Client::CreateGroundObject(const EQ::ItemInstance* inst_in, glm::vec4 coord
 
 	if (message)
 	{
-		Message_StringID(Chat::Yellow, DROPPED_ITEM);
+		Message_StringID(Chat::Yellow,  StringID::DROPPED_ITEM);
 	}
 
 	// Package as zone object
@@ -900,7 +946,7 @@ bool Client::PushItemOnCursorWithoutQueue(EQ::ItemInstance* inst, bool drop)
 	const EQ::ItemData* item = database.GetItem(inst->GetID());
 	if (item && CheckLoreConflict(item))
 	{
-		Message_StringID(Chat::White, DUP_LORE);
+		Message_StringID(Chat::White, StringID::DUP_LORE);
 		return false;
 	}
 
@@ -1396,6 +1442,18 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
 			}
 
 			DeleteItemInInventory(move_in->from_slot);
+
+			if (player_event_logs.IsEventEnabled(PlayerEvent::ITEM_DESTROY)) {
+				auto e = PlayerEvent::DestroyItemEvent{
+					.item_id = inst->GetItem()->ID,
+					.item_name = inst->GetItem()->Name,
+					.charges = inst->GetCharges(),
+					.reason = "Client destroy cursor",
+				};
+
+				RecordPlayerEventLog(PlayerEvent::ITEM_DESTROY, e);
+			}
+
 			return true; // Item destroyed by client
 		}
 		else {
@@ -1424,9 +1482,12 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
 		if(!banker || distance > USE_BANKER_RANGE)
 		{
 			float dist = sqrtf((float)distance);
-			auto hacked_string = fmt::format("Player tried to make use of a banker(items) but {} is non-existant or too far away ( {:.1f} units - window closes at 20).",
-				banker ? banker->GetName() : "UNKNOWN NPC", dist);
-			database.SetMQDetectionFlag(AccountName(), GetName(), hacked_string, zone->GetShortName());
+			auto message = fmt::format(
+				"Player tried to make use of a banker (items) but banker [{}] is "
+				"non-existent or too far away [{}] units",
+				banker ? banker->GetName() : "UNKNOWN NPC", distance
+			);
+			RecordPlayerEventLog(PlayerEvent::POSSIBLE_HACK, PlayerEvent::PossibleHackEvent{ .message = message });
 			if (distance > USE_NPC_RANGE2) {
 				Kick();	// Kicking player to avoid item loss do to client and server inventories not being sync'd
 				std::string error = "Banker error.";
@@ -1467,7 +1528,7 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
 				int inv_where = ~invWhereUnused & ~invWhereCursor; // Allow Lore Item swap if we're swapping the same item
 				if (CheckLoreConflict(src_inst->GetItem(), inv_where))
 				{
-					Message_StringID(Chat::Red, PICK_LORE);
+					Message_StringID(Chat::Red, StringID::PICK_LORE);
 					return false;
 				}
 				if (src_inst->IsClassBag())
@@ -1477,7 +1538,7 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
 						EQ::ItemInstance* contents_i = src_inst->GetItem(i);
 						if (contents_i && contents_i->GetItem() && CheckLoreConflict(contents_i->GetItem(), inv_where))
 						{
-							Message_StringID(Chat::Red, PICK_LORE);
+							Message_StringID(Chat::Red, StringID::PICK_LORE);
 							return false;
 						}
 					}
@@ -1563,7 +1624,7 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
 				int inv_where = ~invWhereUnused & ~invWhereCursor; // Allow Lore Item swap if we're swapping the same item
 				if (CheckLoreConflict(dst_inst->GetItem(), inv_where))
 				{
-					Message_StringID(Chat::Red, PICK_LORE);
+					Message_StringID(Chat::Red, StringID::PICK_LORE);
 					return false;
 				}
 				if (dst_inst->IsClassBag())
@@ -1573,7 +1634,7 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
 						EQ::ItemInstance* contents_i = dst_inst->GetItem(i);
 						if (contents_i && contents_i->GetItem() && CheckLoreConflict(contents_i->GetItem(), inv_where))
 						{
-							Message_StringID(Chat::Red, PICK_LORE);
+							Message_StringID(Chat::Red, StringID::PICK_LORE);
 							return false;
 						}
 					}
@@ -1746,7 +1807,7 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
 					safe_delete(outapp);
 
 					m_tradeskill_object->PutItem(EQ::InventoryProfile::CalcBagIdx(src_slot_id), inst);
-					Message_StringID(Chat::White, DUP_LORE);
+					Message_StringID(Chat::White, StringID::DUP_LORE);
 					safe_delete(inst);
 
 					return true;
@@ -2460,77 +2521,33 @@ void Client::RemoveNoRent(bool client_update)
 }
 
 // Two new methods to alleviate perpetual login desyncs
-void Client::RemoveDuplicateLore(bool client_update) {
-	int16 slot_id = 0;
-
+void Client::RemoveDuplicateLore() {
 	// equipment
-	for(auto slot_id = EQ::invslot::EQUIPMENT_BEGIN; slot_id <= EQ::invslot::EQUIPMENT_END; ++slot_id) {
-		auto inst = m_inv.PopItem(slot_id);
-		if (inst == nullptr) { continue;}
-		if(CheckLoreConflict(inst->GetItem())) {
-			Log(Logs::Detail, Logs::Inventory, "Lore Duplication Error: Deleting %s from slot %i", inst->GetItem()->Name, slot_id);
-			database.SaveInventory(account_id, character_id, nullptr, slot_id);
+	for(auto slot_id : GetInventorySlots()) {
+		// slot gets handled in a queue
+		if (slot_id == EQ::invslot::slotCursor) {
+			continue;
 		}
-		else {
-			m_inv.PutItem(slot_id, *inst);
-		}
-		safe_delete(inst);
-	}
 
-	// general
-	for (auto slot_id = EQ::invslot::GENERAL_BEGIN; slot_id <= EQ::invslot::GENERAL_END; ++slot_id) {
+		// temporarily move the item off of the slot
 		auto inst = m_inv.PopItem(slot_id);
-		if (inst == nullptr) { continue; }
+		if (!inst) {
+			continue;
+		}
+
 		if (CheckLoreConflict(inst->GetItem())) {
-			Log(Logs::Detail, Logs::Inventory, "Lore Duplication Error: Deleting %s from slot %i", inst->GetItem()->Name, slot_id);
+			LogError(
+				"Lore Duplication Error | Deleting [{}] ({}) from slot [{}] client [{}]",
+				inst->GetItem()->Name,
+				inst->GetItem()->ID,
+				slot_id,
+				GetCleanName()
+			);
 			database.SaveInventory(account_id, character_id, nullptr, slot_id);
+			safe_delete(inst);
 		}
-		else {
-			m_inv.PutItem(slot_id, *inst);
-		}
-		safe_delete(inst);
-	}
-
-	// containers
-	for(auto slot_id = EQ::invbag::GENERAL_BAGS_BEGIN; slot_id <= EQ::invbag::CURSOR_BAG_END; ++slot_id) {
-		auto inst = m_inv.PopItem(slot_id);
-		if (inst == nullptr) { continue; }
-		if(CheckLoreConflict(inst->GetItem())) {
-			Log(Logs::Detail, Logs::Inventory, "Lore Duplication Error: Deleting %s from slot %i", inst->GetItem()->Name, slot_id);
-			database.SaveInventory(account_id, character_id, nullptr, slot_id);
-		}
-		else {
-			m_inv.PutItem(slot_id, *inst);
-		}
-		safe_delete(inst);
-	}
-
-	// bank
-	for(auto slot_id = EQ::invslot::BANK_BEGIN; slot_id <= EQ::invslot::BANK_END; ++slot_id) {
-		auto inst = m_inv.PopItem(slot_id);
-		if (inst == nullptr) { continue; }
-		if(CheckLoreConflict(inst->GetItem())) {
-			Log(Logs::Detail, Logs::Inventory, "Lore Duplication Error: Deleting %s from slot %i", inst->GetItem()->Name, slot_id);
-			database.SaveInventory(account_id, character_id, nullptr, slot_id);
-		}
-		else {
-			m_inv.PutItem(slot_id, *inst);
-		}
-		safe_delete(inst);
-	}
-
-	// bank containers
-	for(auto slot_id = EQ::invbag::BANK_BAGS_BEGIN; slot_id <= EQ::invbag::BANK_BAGS_END; ++slot_id) {
-		auto inst = m_inv.PopItem(slot_id);
-		if (inst == nullptr) { continue; }
-		if(CheckLoreConflict(inst->GetItem())) {
-			Log(Logs::Detail, Logs::Inventory, "Lore Duplication Error: Deleting %s from slot %i", inst->GetItem()->Name, slot_id);
-			database.SaveInventory(account_id, character_id, nullptr, slot_id);
-		}
-		else {
-			m_inv.PutItem(slot_id, *inst);
-		}
-		safe_delete(inst);
+		// if no lore conflict, put the item back in the slot
+		m_inv.PushItem(slot_id, inst);
 	}
 
 	// cursor & limbo
@@ -2540,15 +2557,24 @@ void Client::RemoveDuplicateLore(bool client_update) {
 
 		while (!m_inv.CursorEmpty()) {
 			auto inst = m_inv.PopItem(EQ::invslot::slotCursor);
-			if (inst == nullptr) { continue; }
+			if (!inst) { 
+				continue; 
+			}
 			local_1.push_back(inst);
 		}
 
-		for (auto iter = local_1.begin(); iter != local_1.end(); ++iter) {
-			auto inst = *iter;
-			if (inst == nullptr) { continue; }
+		for (auto inst : local_1) {
+			if (!inst) { 
+				continue; 
+			}
+
 			if (CheckLoreConflict(inst->GetItem())) {
-				Log(Logs::Detail, Logs::Inventory, "Lore Duplication Error: Deleting %s from `Limbo`", inst->GetItem()->Name);
+				LogError(
+					"Lore Duplication Error | Deleting [{}] ({}) from `Limbo` client [{}]",
+					inst->GetItem()->Name,
+					inst->GetItem()->ID,
+					GetCleanName()
+				);
 				safe_delete(inst);
 			}
 			else {
@@ -2557,8 +2583,10 @@ void Client::RemoveDuplicateLore(bool client_update) {
 		}
 		local_1.clear();
 
-		for (auto iter = local_2.begin(); iter != local_2.end(); ++iter) {
-			auto inst = *iter;
+		for (auto inst : local_2) {
+			if (!inst) {
+				continue;
+			}
 			if ((inst->GetItem()->Lore[0] != '*' && inst->GetItem()->Lore[0] != '#') ||
 				((inst->GetItem()->Lore[0] == '*') && (m_inv.HasItem(inst->GetID(), 0, invWhereCursor) == INVALID_INDEX)) ||
 				((inst->GetItem()->Lore[0] == '#') && (m_inv.HasArtifactItem() == INVALID_INDEX))) {
@@ -2566,7 +2594,12 @@ void Client::RemoveDuplicateLore(bool client_update) {
 				m_inv.PushCursor(*inst);
 			}
 			else {
-				Log(Logs::Detail, Logs::Inventory, "Lore Duplication Error: Deleting %s from `Limbo`", inst->GetItem()->Name);
+				LogError(
+					"Lore Duplication Error | Deleting [{}] ({}) from `Limbo` client [{}]",
+					inst->GetItem()->Name,
+					inst->GetItem()->ID,
+					GetCleanName()
+				);
 			}
 
 			safe_delete(inst);

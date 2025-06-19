@@ -1,0 +1,1 @@
+ALTER TABLE `guilds` ADD COLUMN `raid_enabled` smallint(5) UNSIGNED NOT NULL DEFAULT 0 AFTER `url`;

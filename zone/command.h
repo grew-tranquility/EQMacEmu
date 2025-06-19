@@ -25,6 +25,7 @@ class Seperator;
 
 #include "../common/types.h"
 #include <string>
+#include <map>
 
 #define	COMMAND_CHAR '#'
 
@@ -45,7 +46,6 @@ void command_deinit(void);
 int command_add(std::string command_name, std::string description, uint8 admin, CmdFuncPtr function);
 int command_notavail(Client *c, std::string message, bool ignore_status);
 int command_realdispatch(Client *c, std::string message, bool ignore_status);
-void command_logcommand(Client *c, std::string message);
 uint8 GetCommandStatus(std::string command_name);
 void ListModifyNPCStatMap(Client* c);
 std::map<std::string, std::string> GetModifyNPCStatMap();
@@ -100,9 +100,11 @@ void command_face(Client* c, const Seperator* sep);
 void command_falltest(Client* c, const Seperator* sep);
 void command_fillbuffs(Client* c, const Seperator* sep);
 void command_find(Client *c, const Seperator *sep);
+void command_fish(Client* c, const Seperator* sep);
 void command_fixmob(Client* c, const Seperator* sep);
 void command_flagedit(Client* c, const Seperator* sep);
 void command_fleeinfo(Client* c, const Seperator* sep);
+void command_forage(Client* c, const Seperator* sep);
 void command_giveitem(Client* c, const Seperator* sep);
 void command_givemoney(Client* c, const Seperator* sep);
 void command_giveplayerfaction(Client* c, const Seperator* sep);
@@ -137,6 +139,7 @@ void command_load_shared_memory(Client* c, const Seperator* sep);
 void command_loc(Client* c, const Seperator* sep);
 void command_logs(Client* c, const Seperator* sep);
 void command_logtest(Client* c, const Seperator* sep);
+void command_lootsim(Client *c, const Seperator *sep);
 void command_makemule(Client* c, const Seperator* sep);
 void command_makepet(Client* c, const Seperator* sep);
 void command_manaburn(Client* c, const Seperator* sep);

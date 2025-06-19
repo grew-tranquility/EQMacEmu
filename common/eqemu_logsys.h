@@ -74,7 +74,7 @@ namespace Logs {
 		Spawns,
 		Spells,
 		Status, // deprecated
-		TCPConnection,
+		TCPConnection, // deprecated
 		Tasks,
 		Tradeskills,
 		Trading,
@@ -124,6 +124,12 @@ namespace Logs {
 		EqTime,
 		ClientLogin,
 		Discord,
+		CombatRecord,
+		Cheat,
+		PlayerEvents,
+		HTTP,
+		NetClient,
+		NetTCP,
 		MaxCategoryID	/* Don't Remove this*/
 	};
 
@@ -155,7 +161,7 @@ namespace Logs {
 		"Spawns",
 		"Spells",
 		"Status (Deprecated)",
-		"TCP Connection",
+		"TCP Connection (Deprecated)",
 		"Tasks",
 		"Tradeskills",
 		"Trading",
@@ -204,7 +210,13 @@ namespace Logs {
 		"Zone Points",
 		"EqTime",
 		"Client Login",
-		"Discord"
+		"Discord",
+		"CombatRecord",
+		"Cheat",
+		"PlayerEvents",
+		"HTTP",
+		"Net Server <-> Client",
+		"Net TCP"
 	};
 }
 

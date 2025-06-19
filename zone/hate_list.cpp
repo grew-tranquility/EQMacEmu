@@ -407,6 +407,7 @@ Mob* HateList::GetDamageTopSingleMob(int32& return_dmg) {
 	while (iterator != list.end()) {
 		m = (*iterator)->ent;
 		dmg = (*iterator)->damage;
+		
 		if (!m) {
 			++iterator;
 			continue;
@@ -416,6 +417,7 @@ Mob* HateList::GetDamageTopSingleMob(int32& return_dmg) {
 				dmg = 0;
 			}
 		}
+		
 		if (dmg > top_dmg) {
 			top_dmg = dmg;
 			top_mob = m;

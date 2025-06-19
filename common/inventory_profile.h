@@ -174,6 +174,8 @@ namespace EQ
 		std::string GetCustomItemData(int16 slot_id, std::string identifier);
 
 		void MarkItemsSelfFound(uint32 self_found_character_id, const char* character_name);
+		inline int16 PushItem(int16 slot_id, ItemInstance *inst) { return _PutItem(slot_id, inst); }
+
 	protected:
 		///////////////////////////////
 		// Protected Methods

@@ -87,34 +87,36 @@
 #include "../common/zone_store.h"
 #include "world_event_scheduler.h"
 #include "../common/path_manager.h"
+#include "../common/events/player_event_logs.h"
 #include "../common/skill_caps.h"
 #include "../common/ip_util.h"
 
-SkillCaps skill_caps;
-ZoneStore zone_store;
-TimeoutManager timeout_manager;
-EQStreamFactory eqsf(WorldStream,9000);
-ClientList client_list;
-ZSList zoneserver_list;
-LoginServerList loginserverlist;
-UCSConnection UCSLink;
+SkillCaps           skill_caps;
+ZoneStore           zone_store;
+TimeoutManager      timeout_manager;
+EQStreamFactory     eqsf(WorldStream,9000);
+ClientList          client_list;
+ZSList              zoneserver_list;
+LoginServerList     loginserverlist;
+UCSConnection       UCSLink;
 QueryServConnection QSLink;
-LauncherList launcher_list; 
+LauncherList        launcher_list; 
 WorldEventScheduler event_scheduler;
-EQ::Random emu_random;
-volatile bool RunLoops = true;
-uint32 numclients = 0;
-uint32 numzones = 0;
-bool holdzones = false;
-const WorldConfig *Config;
-EQEmuLogSys LogSys;
+EQ::Random          emu_random;
+volatile bool       RunLoops = true;
+uint32              numclients = 0;
+uint32              numzones = 0;
+bool                holdzones = false;
+const WorldConfig   *Config;
+EQEmuLogSys         LogSys;
+WebInterfaceList    web_interface;
 ServerEarthquakeImminent_Struct next_quake;
 std::unordered_set<uint32> ipWhitelist;
 std::mutex		ipMutex;
 bool bSkipFactoryAuth = false;
-WebInterfaceList web_interface;
 WorldContentService content_service;
 PathManager         path;
+PlayerEventLogs     player_event_logs;
 
 void CatchSignal(int sig_num);
 
@@ -434,6 +436,9 @@ int main(int argc, char** argv) {
 	std::shared_ptr<EQOldStream> eqos;
 	EQStreamInterface *eqsi;
 
+	Timer player_event_process_timer(1000);
+	player_event_logs.SetDatabase(&database)->Init();
+
 	auto loop_fn = [&](EQ::Timer* t) {
 		Timer::SetCurrentTime();
 
@@ -502,6 +507,10 @@ int main(int argc, char** argv) {
 
 		client_list.Process();
 		
+		if (player_event_process_timer.Check()) {
+			player_event_logs.Process();
+		}
+
 		if(EQTimeTimer.Check()) {
 			TimeOfDay_Struct tod;
 			zoneserver_list.worldclock.GetCurrentEQTimeOfDay(time(0), &tod);
@@ -545,8 +554,9 @@ int main(int argc, char** argv) {
 				zoneserver_list.SendPacket(pack2);
 
 				//Roleplay flavor text, go!
-				zoneserver_list.SendEmoteMessage(0, 0, AccountStatus::Player, Chat::Red, "Druzzil Ro's voice echoes in your mind, 'Beware, mortal. Creatures of legendary strength return to the world for a limited time.'");
-				zoneserver_list.SendEmoteMessage(0, 0, AccountStatus::Player, Chat::Yellow, "Druzzil Ro's projection alters time and space. Raid creatures have appeared in open world for a short time. Rule 9.x and Rule 10.x have been suspended in open world raid zones temporarily.");
+				database.AdjustPVPSpawnTimes(); //Adjust PVP spawn times on quake start.
+				zoneserver_list.SendEmoteMessage(0, 0, AccountStatus::Player, Chat::Red, "Druzzil Ro's voice echoes in your mind, 'Beware, mortal. Creatures of legendary strength return to areas of discord.'");
+				zoneserver_list.SendEmoteMessage(0, 0, AccountStatus::Player, Chat::Yellow, "Druzzil Ro's projection alters time and space. Creatures have respawned in PVP instances.");
 
 				//Inform of imminent quake. This happens after the MOTD so zone denizens are informed again with relevant information.
 				auto pack = new ServerPacket(ServerOP_QuakeImminent, sizeof(ServerEarthquakeImminent_Struct));
@@ -590,7 +600,7 @@ int main(int argc, char** argv) {
 
 				//MOTD has been set. Roleplay flavor text, go!
 				zoneserver_list.SendEmoteMessage(0, 0, AccountStatus::Player, Chat::Red, "Druzzil Ro's voice echoes in your mind, 'It seems as though the mortals have had enough of my games...'");
-				zoneserver_list.SendEmoteMessage(0, 0, AccountStatus::Player, Chat::Yellow, "Druzzil Ro's grasp no longer archors this land... for now. The Earthquake has ended, and Rules 9.x and 10.x once again apply.");
+				zoneserver_list.SendEmoteMessage(0, 0, AccountStatus::Player, Chat::Yellow, "Druzzil Ro's grasp no longer archors this land... for now. The Earthquake has ended.");
 
 				//We're no longer using the timer; we've done our job. The next quake will enable it again.
 				DisableQuakeTimer.Disable();
@@ -637,6 +647,6 @@ int main(int argc, char** argv) {
 }
 
 void CatchSignal(int sig_num) {
-	Log(Logs::General, Logs::WorldServer,"Caught signal %d",sig_num);
+	LogInfo("Caught signal [{}]",sig_num);
 	RunLoops = false;
 }
