@@ -6,8 +6,8 @@
 ./build/bin/shared_memory &
 sleep 6
 
-./build/bin/loginserver &
-sleep 3
+#./build/bin/loginserver &
+#sleep 3
 
 ./build/bin/world &
 sleep 3
