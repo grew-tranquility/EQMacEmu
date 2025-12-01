@@ -384,7 +384,7 @@ void Client::GoFish(bool guarantee, bool use_bait)
 				args.push_back(inst);
 				parse->EventPlayer(EVENT_FISH_SUCCESS, this, "", inst->GetID(), &args);
 
-				if (player_event_logs.IsEventEnabled(PlayerEvent::FISH_SUCCESS)) {
+				if (inst->GetItem() && player_event_logs.IsEventEnabled(PlayerEvent::FISH_SUCCESS)) {
 					auto e = PlayerEvent::FishSuccessEvent{
 						.item_id = inst->GetItem()->ID,
 						.item_name = inst->GetItem()->Name,
@@ -549,7 +549,7 @@ void Client::ForageItem(bool guarantee) {
 				args.push_back(inst);
 				parse->EventPlayer(EVENT_FORAGE_SUCCESS, this, "", inst->GetID(), &args);
 
-				if (player_event_logs.IsEventEnabled(PlayerEvent::FORAGE_SUCCESS)) {
+				if (inst->GetItem() && player_event_logs.IsEventEnabled(PlayerEvent::FORAGE_SUCCESS)) {
 					auto e = PlayerEvent::ForageSuccessEvent{
 						.item_id = inst->GetItem()->ID,
 						.item_name = inst->GetItem()->Name

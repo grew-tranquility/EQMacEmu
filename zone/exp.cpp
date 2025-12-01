@@ -143,7 +143,7 @@ float Mob::GetBaseEXP()
 	}
 
 	if (zone->IsHotzone()) {
-		hotzonexp = RuleR(Zone, HotZoneBonus) * 100;
+		zemmod = RuleR(Zone, HotZoneBonus) * 100;
 	}
 
 	// very low levels get an artifical ZEM.  It's either 100 or 114, not sure.  Also not sure how many levels this applies.  If you find out, fix this
@@ -261,9 +261,14 @@ void Client::AddEXP(uint32 in_add_exp, uint8 conlevel, Mob* killed_mob, int16 av
 		}
 	}
 
+	if (m_epp.perAA != 0)
+	{
+		buffmod = 1.0f;
+	}
+
 	if (buffmod != 1.0f && spellbonuses.KillXPBonus)
 	{
-		Message(Chat::Yellow, "You receive a %.2f percent bonus! (Buff)", (spellbonuses.KillXPBonus - 1.0f) * 100.0f);
+		Message(Chat::Yellow, "You receive a %.2f percent bonus! (XP Potion)", (spellbonuses.KillXPBonus - 1.0f) * 100.0f);
 	}
 
 	// This logic replicates the September 4 & 6 2002 patch exp modifications that granted a large
@@ -271,8 +276,17 @@ void Client::AddEXP(uint32 in_add_exp, uint8 conlevel, Mob* killed_mob, int16 av
 	uint8 moblevel = killed_mob->GetLevel();
 	int lvl_diff = moblevel - GetLevel();
 
+	int min_lvl_diff = -6;
+	int max_lvl_diff = 6;
+
+	if (zone && (int)zone->GetZoneExpansion() >= (int)Expansion::ExpansionNumber::TheShadowsOfLuclin || zone && zone->GetGuildID() == 1 || zone && zone->IsHotzone())
+	{
+		min_lvl_diff = -16;
+		max_lvl_diff = 16;
+	}
+
 	if (moblevel > 45 && GetLevel() > 50
-		&& lvl_diff > -6 && lvl_diff < 6 && (GetLevel() + 5) >= avg_level) // Sony checked group level avg and deep reds to mitigate powerleveling)
+		&& lvl_diff > min_lvl_diff && lvl_diff < max_lvl_diff && (GetLevel() + 5) >= avg_level) // Sony checked group level avg and deep reds to mitigate powerleveling)
 	{
 		mlm = 2.6f;		// old showeq threads called this the 'mob level modifier'
 
@@ -291,6 +305,10 @@ void Client::AddEXP(uint32 in_add_exp, uint8 conlevel, Mob* killed_mob, int16 av
 				adj /= 2.0f;	// still not quite sure how to handle yellows/reds when player level < 60 but this should be close
 			mlm = mlm_cap - ((GetLevel() - moblevel) * adj);
 		}
+		if((int)zone->GetZoneExpansion() >= (int)Expansion::ExpansionNumber::TheShadowsOfLuclin)
+			mlm = std::max(1.15f, mlm);
+		else
+			mlm = std::max(1.0f, mlm);
 	}
 	else if (conlevel == CON_LIGHTBLUE)
 	{

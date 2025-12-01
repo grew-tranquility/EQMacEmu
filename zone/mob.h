@@ -63,7 +63,7 @@ namespace EQ
 class Mob : public Entity {
 public:
 	enum CLIENT_CONN_STATUS { CLIENT_CONNECTING, CLIENT_WAITING_FOR_AUTH, CLIENT_AUTH_RECEIVED, CLIENT_CONNECTED, CLIENT_LINKDEAD,
-						CLIENT_KICKED, PREDISCONNECTED, ZONING, DISCONNECTED, CLIENT_ERROR, CLIENT_CONNECTINGALL };
+						CLIENT_KICKED, PREDISCONNECTED, ZONING, DISCONNECTED, CLIENT_ERROR, CLIENT_CONNECTINGALL, CLIENT_OFFLINE_TRADER };
 	enum eStandingPetOrder { SPO_Follow, SPO_Sit, SPO_Guard };
 
 	struct MobSpecialAbility {
@@ -221,7 +221,7 @@ public:
 	void ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses* newbon, uint16 casterID = 0,
 		bool item_bonus = false, int16 instrumentmod = 10, uint32 ticsremaining = 0, int buffslot = -1,
 		bool IsAISpellEffect = false, uint16 effect_id = 0, int32 se_base = 0, int32 se_limit = 0, int32 se_max = 0,
-		bool is_tap_recourse = false);
+		bool is_tap_recourse = false, bool buff_from_client = false);
 	virtual float GetActSpellRange(uint16 spell_id, float range, std::string& item_name) { return range;}
 	virtual float GetSpellRange(uint16 spell_id, float range) { return range; }
 	virtual int32 GetActSpellDamage(uint16 spell_id, int32 value, Mob* target = nullptr) { return value; }
@@ -1017,7 +1017,7 @@ public:
 protected:
 	void CommonDamage(Mob* other, int32 &damage, const uint16 spell_id, const  EQ::skills::SkillType  attack_skill, bool &avoidable, const int8 buffslot, const bool iBuffTic);
 	void AggroPet(Mob* attacker);
-	static uint16 GetProcID(uint16 spell_id, uint8 effect_index);
+	uint16 GetProcID(uint16 spell_id, uint8 effect_index);
 	//float _GetMovementSpeed(int mod, bool iswalking = false) const;
 	int _GetRunSpeed() const;
 	int _GetWalkSpeed() const;

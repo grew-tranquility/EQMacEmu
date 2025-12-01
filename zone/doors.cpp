@@ -85,6 +85,8 @@ Doors::Doors(const DoorsRepository::Doors &door) :
 	instance_only       = door.instance_only;
 	client_version_mask = door.client_version_mask;
 	guild_zone_door = door.guild_zone_door;
+	pvp_zone_door = door.pvp_zone_door;
+	pvp_max_level = door.pvp_max_level;
 
 	SetOpenState(false);
 
@@ -128,7 +130,9 @@ Doors::Doors(const char *model, const glm::vec4& position, uint8 opentype, uint1
 	is_lift		= 0;
 	close_time	= 0;
 	can_open		= 0;
-	guild_zone_door = 0;
+	guild_zone_door = false;
+	pvp_zone_door = false;
+	pvp_max_level = 255;
 	client_version_mask = 4294967295u;
 
 	SetOpenState(false);
@@ -365,9 +369,21 @@ void Doors::HandleClick(Client* sender, uint8 trigger, bool floor_port)
 			return;
 		}
 
-		if (sender->GetPVP() != 0 && zoneguildid != GUILD_NONE || zoneguildid != GUILD_NONE && strncmp(destination_zone_name, "charasis", strlen("charasis")) == 0 || zoneguildid != GUILD_NONE && strncmp(destination_zone_name, "mischiefplane", strlen("mischiefplane")) == 0)
+		if (pvp_zone_door == 1 && sender && (uint32)(sender->GetLevel2()) > pvp_max_level)
+		{
+			sender->Message(Chat::Red, "You are unable to enter a PVP Instance because your level is above the maximum allowed level of %i.", pvp_max_level);
+			return;
+		}
+
+		if (sender->GetPVP() != 0 && zoneguildid != GUILD_NONE || zoneguildid != GUILD_NONE && pvp_zone_door == 1)
 		{
 			zoneguildid = 1;
+		}
+
+		if (pvp_zone_door == 1 && zoneguildid != 1)
+		{
+			sender->Message(Chat::Red, "You are unable to enter a PVP Instance at this time. Please use the chat command #togglepvp .");
+			return;
 		}
 
 		if (zoneguildid == 1)
@@ -400,23 +416,21 @@ void Doors::HandleClick(Client* sender, uint8 trigger, bool floor_port)
 			return;
 		}
 
+		if (RuleB(Quarm, EnforceLatestDllToEnterSpecialInstances) && zoneguildid == 1 && sender->GetClientLibraryVersion() < RuleI(Quarm, WarnDllVersionBelow))
+		{
+			sender->Message(Chat::Red, "You must be running the latest version of the Quarm Server Patch to enter this zone.");
+			return;
+		}
+
 		if ((floor_port || strncmp(destination_zone_name,zone_name,strlen(zone_name)) == 0) && !keyneeded)
 		{
 			if(!keepoffkeyring)
 			{
 				sender->KeyRingAdd(playerkey);
 			}
-			sender->MovePCGuildID(zone->GetZoneID(), zoneguildid, m_destination.x, m_destination.y, m_destination.z, m_destination.w);
-		}
-		else if ((!IsDoorOpen() || open_type == 58 || floor_port) && (keyneeded && ((keyneeded == playerkey) || sender->GetGM())))
-		{
-			if(!keepoffkeyring)
+			if (zoneid == zone->GetZoneID())
 			{
-				sender->KeyRingAdd(playerkey);
-			}
-			if(zoneid == zone->GetZoneID())
-			{
-				sender->MovePCGuildID(zone->GetZoneID(), zoneguildid, m_destination.x, m_destination.y, m_destination.z, m_destination.w);
+				sender->MovePCGuildID(zone->GetZoneID(), zone->GetGuildID(), m_destination.x, m_destination.y, m_destination.z, m_destination.w);
 			}
 			else
 			{
@@ -424,12 +438,27 @@ void Doors::HandleClick(Client* sender, uint8 trigger, bool floor_port)
 				sender->MovePCGuildID(zoneid, zoneguildid, temp_x, temp_y, m_destination.z, m_destination.w);
 			}
 		}
-
-		if ((!IsDoorOpen() || open_type == 58) && !keyneeded)
+		else if ((!IsDoorOpen() || open_type == 58 || floor_port) && (keyneeded && ((keyneeded == playerkey) || sender->GetGM())))
+		{
+			if (!keepoffkeyring)
+			{
+				sender->KeyRingAdd(playerkey);
+			}
+			if (zoneid == zone->GetZoneID())
+			{
+				sender->MovePCGuildID(zone->GetZoneID(), zone->GetGuildID(), m_destination.x, m_destination.y, m_destination.z, m_destination.w);
+			}
+			else
+			{
+				zone->ApplyRandomLoc(zoneid, temp_x, temp_y);
+				sender->MovePCGuildID(zoneid, zoneguildid, temp_x, temp_y, m_destination.z, m_destination.w);
+			}
+		}
+		else if ((!IsDoorOpen() || open_type == 58) && !keyneeded)
 		{
 			if(zoneid == zone->GetZoneID())
 			{
-				sender->MovePCGuildID(zone->GetZoneID(), zoneguildid, m_destination.x, m_destination.y, m_destination.z, m_destination.w);
+				sender->MovePCGuildID(zone->GetZoneID(), zone->GetGuildID(), m_destination.x, m_destination.y, m_destination.z, m_destination.w);
 			}
 			else
 			{

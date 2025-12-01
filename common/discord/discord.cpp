@@ -32,7 +32,15 @@ void Discord::SendWebhookMessage(const std::string& message, const std::string& 
 
         // payload
         Json::Value p;
+		Json::Value obj(Json::objectValue);
+		Json::Value jsonArray(Json::arrayValue);
+		std::vector<std::string> allowed_mentions;
         p["content"] = message;
+		obj["parse"] = jsonArray;
+		obj["users"] = jsonArray;
+		obj["roles"] = jsonArray;
+		obj["replied_user"] = false;
+		p["allowed_mentions"] = obj;
         std::stringstream payload;
         payload << p;
 

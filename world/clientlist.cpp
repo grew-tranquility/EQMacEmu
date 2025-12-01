@@ -40,12 +40,13 @@
 extern WebInterfaceList web_interface;
 
 extern ZSList			zoneserver_list;
-uint32 numplayers = 0;	//this really wants to be a member variable of ClientList...
 
 ClientList::ClientList()
 : CLStale_timer(RuleI(World, WorldClientLinkdeadMS))
 {
 	NextCLEID = 1;
+	cached_gm_count = 0;
+	cached_trader_count = 0;
 
 	m_tick = std::make_unique<EQ::Timer>(5000, true, std::bind(&ClientList::OnTick, this, std::placeholders::_1));
 }
@@ -63,34 +64,71 @@ void ClientList::Process() {
 	iterator.Reset();
 	while(iterator.MoreElements()) {
 		if (!iterator.GetData()->Process()) {
+
+			bool should_remove_playercount = iterator.GetData()->GetAdmin() == 0;
 			struct in_addr in;
 			in.s_addr = iterator.GetData()->GetIP();
 			LogInfo("Removing client from [{}]:[{}]", inet_ntoa(in), iterator.GetData()->GetPort());
 			uint32 accountid = iterator.GetData()->GetAccountID();
 			iterator.RemoveCurrent();
 
-			if(!ActiveConnection(accountid))
+			if (!ActiveConnectionIncludingStale(accountid))
+			{
 				database.ClearAccountActive(accountid);
+			}
 		}
 		else
 			iterator.Advance();
 	}
 }
 
-bool ClientList::ActiveConnection(uint32 account_id) {
+bool ClientList::ActiveConnectionIncludingStale(uint32 account_id) {
 	LinkedListIterator<ClientListEntry*> iterator(clientlist);
 
 	iterator.Reset();
-	while(iterator.MoreElements()) {
-		if (iterator.GetData()->AccountID() == account_id && iterator.GetData()->Online() > CLE_Status::Offline) {
+	while (iterator.MoreElements()) {
+		if (iterator.GetData()->AccountID() == account_id) {
 			struct in_addr in;
 			in.s_addr = iterator.GetData()->GetIP();
-			LogInfo("Client with account [{}] exists on [{}]", iterator.GetData()->AccountID(), inet_ntoa(in));
+			LogInfo("Client with account [{}] exists on [{}] (active including stale)", iterator.GetData()->AccountID(), inet_ntoa(in));
+
 			return true;
 		}
 		iterator.Advance();
 	}
 	return false;
+}
+
+bool ClientList::ActiveConnectionKickStale(uint32 account_id) {
+	LinkedListIterator<ClientListEntry*> iterator(clientlist);
+	bool found_active = false;
+
+	iterator.Reset();
+	while (iterator.MoreElements()) {
+		if (iterator.GetData()->AccountID() == account_id) {
+
+			CLE_Status eStatus = iterator.GetData()->Online();
+			if (eStatus > CLE_Status::CharSelect)
+			{
+				if (eStatus == CLE_Status::OfflineBazaar)
+				{
+					auto pack = new ServerPacket(ServerOP_KickPlayerAccount, sizeof(ServerKickPlayerAccount_Struct));
+					ServerKickPlayerAccount_Struct* skp = (ServerKickPlayerAccount_Struct*)pack->pBuffer;
+					skp->AccountID = account_id;
+					zoneserver_list.SendPacket(pack);
+					safe_delete(pack);
+				}
+
+				found_active = true;
+			}
+			else if (eStatus <= CLE_Status::CharSelect) {
+				iterator.RemoveCurrent();
+				continue;
+			}
+		}
+		iterator.Advance();
+	}
+	return found_active;
 }
 
 bool ClientList::ActiveConnection(uint32 account_id, uint32 character_id) {
@@ -135,150 +173,6 @@ ClientListEntry* ClientList::GetCLE(uint32 iID) {
 	return 0;
 }
 
-//Account Limiting Code to limit the number of characters allowed on from a single account at once.
-bool ClientList::EnforceSessionLimit(uint32 iLSAccountID) {
-
-	ClientListEntry* ClientEntry = 0;
-
-	LinkedListIterator<ClientListEntry*> iterator(clientlist, BACKWARD);
-
-	int CharacterCount = 1;
-
-	iterator.Reset();
-
-	while(iterator.MoreElements()) {
-
-		ClientEntry = iterator.GetData();
-
-		if ((ClientEntry->LSAccountID() == iLSAccountID) &&
-			((ClientEntry->Admin() <= (RuleI(World, ExemptAccountLimitStatus))) || (RuleI(World, ExemptAccountLimitStatus) < 0))) 
-		{
-
-			if(strlen(ClientEntry->name()) && !ClientEntry->LD()) 
-			{
-				CharacterCount++;
-			}
-
-			if (CharacterCount > (RuleI(World, AccountSessionLimit)))
-			{
-				LogInfo("LSAccount [{}] has a CharacterCount of: [{}].", iLSAccountID, CharacterCount);
-				return true;
-			}
-		}
-		iterator.Advance();
-	}
-
-	return false;
-}
-
-
-//Check current CLE Entry IPs against incoming connection
-
-void ClientList::GetCLEIP(uint32 iIP) {
-
-	ClientListEntry* countCLEIPs = 0;
-	LinkedListIterator<ClientListEntry*> iterator(clientlist);
-
-	int IPInstances = 0;
-	iterator.Reset();
-
-	while(iterator.MoreElements()) {
-
-		countCLEIPs = iterator.GetData();
-		int exemptcount = database.CheckExemption(iterator.GetData()->AccountID());
-
-		// If the IP matches, and the connection admin status is below the exempt status,
-		// or exempt status is less than 0 (no-one is exempt)
-		if ((countCLEIPs->GetIP() == iIP) &&
-			((countCLEIPs->Admin() < (RuleI(World, ExemptMaxClientsStatus))) ||
-			(RuleI(World, ExemptMaxClientsStatus) < 0))) {
-
-			// Increment the occurrences of this IP address
-			IPInstances++;
-
-			// If the number of connections exceeds the lower limit divided by number of exemptions allowed.
-			// Set exemptions in account/ip_exemption_multiplier, default is 1.
-			// 1 means 1 set of MaxClientsPerIP online allowed.
-			// example MaxClientsPerIP set to 3 and ip_exemption_multiplier 1, only 3 accounts will be allowed.
-			// Whereas MaxClientsPerIP set to 3 and ip_exemption_multiplier 2 = a max of 6 accounts allowed.
-			if (IPInstances / exemptcount > (RuleI(World, MaxClientsPerIP))) {
-
-				// If MaxClientsSetByStatus is set to True, override other IP Limit Rules
-				if (RuleB(World, MaxClientsSetByStatus)) {
-
-					// The IP Limit is set by the status of the account if status > MaxClientsPerIP
-					if (IPInstances > countCLEIPs->Admin()) {
-
-						if(RuleB(World, IPLimitDisconnectAll)) {
-							DisconnectByIP(iIP);
-							return;
-						} else {
-							// Remove the connection
-							countCLEIPs->SetOnline(CLE_Status::Offline);
-							iterator.RemoveCurrent();
-							continue;
-						}
-					}
-				}
-				// Else if the Admin status of the connection is not eligible for the higher limit,
-				// or there is no higher limit (AddMaxClientStatus<0)
-				else if ((countCLEIPs->Admin() < (RuleI(World, AddMaxClientsStatus)) ||
-						(RuleI(World, AddMaxClientsStatus) < 0))) {
-
-					if(RuleB(World, IPLimitDisconnectAll)) {
-						DisconnectByIP(iIP);
-						return;
-					} else {
-						// Remove the connection
-						countCLEIPs->SetOnline(CLE_Status::Offline);
-						iterator.RemoveCurrent();
-						continue;
-					}
-				}
-				// else they are eligible for the higher limit, but if they exceed that
-				else if (IPInstances > RuleI(World, AddMaxClientsPerIP)) {
-
-					if(RuleB(World, IPLimitDisconnectAll)) {
-						DisconnectByIP(iIP);
-						return;
-					} else {
-						// Remove the connection
-						countCLEIPs->SetOnline(CLE_Status::Offline);
-						iterator.RemoveCurrent();
-						continue;
-					}
-				}
-			}
-		}
-		iterator.Advance();
-	}
-}
-
-void ClientList::DisconnectByIP(uint32 iIP) {
-	ClientListEntry* countCLEIPs = 0;
-	LinkedListIterator<ClientListEntry*> iterator(clientlist);
-	iterator.Reset();
-
-	while(iterator.MoreElements()) {
-		countCLEIPs = iterator.GetData();
-		if ((countCLEIPs->GetIP() == iIP)) {
-			if(strlen(countCLEIPs->name())) {
-				auto pack = new ServerPacket(ServerOP_KickPlayer, sizeof(ServerKickPlayer_Struct));
-				ServerKickPlayer_Struct* skp = (ServerKickPlayer_Struct*) pack->pBuffer;
-				strcpy(skp->adminname, "SessionLimit");
-				strcpy(skp->name, countCLEIPs->name());
-				skp->adminrank = 255;
-				zoneserver_list.SendPacket(pack);
-				safe_delete(pack);
-			}
-			countCLEIPs->SetOnline(CLE_Status::Offline);
-			iterator.RemoveCurrent();
-			continue;
-		}
-		iterator.Advance();
-	}
-}
-
 bool ClientList::CheckIPLimit(uint32 iAccID, uint32 iIP, uint16 admin, ClientListEntry* cle) {
 
 	ClientListEntry* countCLEIPs = 0;
@@ -301,7 +195,7 @@ bool ClientList::CheckIPLimit(uint32 iAccID, uint32 iIP, uint16 admin, ClientLis
 			(RuleI(World, ExemptMaxClientsStatus) < 0))) {
 
 			// Increment the occurrences of this IP address
-			if (countCLEIPs->Online() >= CLE_Status::Zoning && (cle == nullptr || cle != countCLEIPs))
+			if (countCLEIPs->Online() >= CLE_Status::Never && countCLEIPs->Online() != CLE_Status::OfflineBazaar && (cle == nullptr || cle != countCLEIPs))
 				IPInstances++;
 		}
 		iterator.Advance();
@@ -329,48 +223,6 @@ bool ClientList::CheckIPLimit(uint32 iAccID, uint32 iIP, uint16 admin, ClientLis
 		else if (IPInstances > (exemptcount * (RuleI(World, MaxClientsPerIP) + RuleI(World, AddMaxClientsPerIP)))) {
 
 			return false;
-		}
-	}
-	return true;
-}
-
-bool ClientList::CheckMuleLimit(uint32 iAccID, uint32 iIP, uint16 admin, ClientListEntry *cle) {
-
-	ClientListEntry *curCLE = 0;
-	LinkedListIterator<ClientListEntry *> iterator(clientlist);
-	int MuleInstances = 1;
-	iterator.Reset();
-
-	while (iterator.MoreElements()) {
-
-		curCLE = iterator.GetData();
-
-		// If the forum name matches, and the connection admin status is below the exempt status,
-		// or exempt status is less than 0 (no-one is exempt)
-		if ((curCLE != nullptr && curCLE->GetIP() == iIP && curCLE->mule()) &&
-			((admin < (RuleI(World, ExemptMaxClientsStatus))) ||
-			(RuleI(World, ExemptMaxClientsStatus) < 0))) {
-
-			// Increment the occurrences of this forum name
-			if (curCLE->Online() >= CLE_Status::Zoning && (cle == nullptr || cle != curCLE))
-				MuleInstances++;
-		}
-		iterator.Advance();
-	}
-
-	if (MuleInstances > (RuleI(World, MaxMulesPerIP))) {
-
-		// If MaxClientsSetByStatus is set to True, override other IP Limit Rules
-		if (RuleB(World, MaxClientsSetByStatus)) {
-
-			// The IP Limit is set by the status of the account if status > MaxClientsPerIP
-			if (MuleInstances > admin) {
-				return false;
-			}
-		}
-		else
-		{
-			return false; // limit exceeded
 		}
 	}
 	return true;
@@ -490,46 +342,60 @@ void ClientList::SendCLEList(const int16& admin, const char* to, WorldTCPConnect
 		iterator.Advance();
 		x++;
 	}
-	fmt::format_to(std::back_inserter(out), "{}{} CLEs in memory. {} CLEs listed. numplayers = {}.", newline, x, y, numplayers);
+	fmt::format_to(std::back_inserter(out), "{} {} CLEs in memory. {} CLEs listed. numplayers = {}.", newline, x, y, GetClientCount());
 	out.push_back(0);
 	connection->SendEmoteMessageRaw(to, 0, AccountStatus::Player, Chat::NPCQuestSay, out.data());
 }
 
-ClientListEntry* ClientList::RemoveCLEByAccountID(uint32 accountID) {
-	LinkedListIterator<ClientListEntry*> iterator(clientlist);
-
-	iterator.Reset();
-	while (iterator.MoreElements())
+void ClientList::CLEAdd(uint32 iLSID, const char* iLoginName, const char* iForumName, const char* iLoginKey, int16 iWorldAdmin, uint32 ip, uint8 local, uint8 version) {
+	
+	// Account stuff
+	uint32	paccountid = 0;
+	char	paccountname[32] = { 0 };
+	int16	padmin = 0;
+	bool pmule = false;
+	
+	if (GetClientCount() >= RuleI(Quarm, PlayerPopulationCap))
 	{
-		if (iterator.GetData()->AccountID() == accountID) {
-			iterator.RemoveCurrent();
-			continue;
-		}
-		iterator.Advance();
+		uint32 paccountid = database.GetAccountIDFromLSID(iLSID, paccountname, &padmin, 0, &pmule);
+
+		if(padmin == 0)
+			return;
 	}
-	return 0;
-}
 
-
-void ClientList::CLEAdd(uint32 iLSID, const char* iLoginName, const char* iLoginKey, int16 iWorldAdmin, uint32 ip, uint8 local, uint8 version) {
-	auto tmp = new ClientListEntry(GetNextCLEID(), iLSID, iLoginName, iLoginKey, iWorldAdmin, ip, local, version, 0);
-
+	auto tmp = new ClientListEntry(GetNextCLEID(), iLSID, iLoginName, iForumName, iLoginKey, iWorldAdmin, ip, local, version, 0);
 	clientlist.Append(tmp);
 }
 
 void ClientList::CLCheckStale() {
 	LinkedListIterator<ClientListEntry*> iterator(clientlist);
 
+	cached_gm_count = 0;
+	cached_trader_count = 0;
+
 	iterator.Reset();
 	while(iterator.MoreElements()) {
+
+		bool should_remove_playercount = iterator.GetData()->Admin() == 0;
+		bool should_remove_baz_offline_player = iterator.GetData()->Online() == OfflineBazaar;
+
+		if (!should_remove_playercount)
+			cached_gm_count++;
+
+		if (should_remove_baz_offline_player)
+			cached_trader_count++;
+
 		if (iterator.GetData()->CheckStale()) {
+
 			struct in_addr in;
 			in.s_addr = iterator.GetData()->GetIP();
 			LogInfo("Removing stale client on account [{}] from [{}]", iterator.GetData()->AccountID(), inet_ntoa(in));
 			uint32 accountid = iterator.GetData()->AccountID();
 			iterator.RemoveCurrent();
-			if(!ActiveConnection(accountid))
+			if (!ActiveConnectionIncludingStale(accountid))
+			{
 				database.ClearAccountActive(accountid);
+			}
 		}
 		else
 			iterator.Advance();
@@ -549,7 +415,7 @@ void ClientList::ClientUpdate(ZoneServer* zoneserver, ServerClientList_Struct* s
 			else if (scl->remove == 1)
 				cle->LeavingZone(zoneserver, CLE_Status::Zoning);
 			else
-				cle->Update(zoneserver, scl);
+				cle->Update(zoneserver, scl, scl->Trader ? CLE_Status::OfflineBazaar : CLE_Status::InZone);
 			return;
 		}
 		iterator.Advance();
@@ -559,7 +425,7 @@ void ClientList::ClientUpdate(ZoneServer* zoneserver, ServerClientList_Struct* s
 	else if (scl->remove == 1)
 		cle = new ClientListEntry(GetNextCLEID(), zoneserver, scl, CLE_Status::Zoning);
 	else
-		cle = new ClientListEntry(GetNextCLEID(), zoneserver, scl, CLE_Status::InZone);
+		cle = new ClientListEntry(GetNextCLEID(), zoneserver, scl, scl->Trader ? CLE_Status::OfflineBazaar : CLE_Status::InZone);
 	clientlist.Insert(cle);
 	zoneserver->ChangeWID(scl->charid, cle->GetID());
 }
@@ -624,7 +490,7 @@ ClientListEntry* ClientList::CheckAuth(const char* iName, const char* iPassword)
 		tmprevoked = database.CheckRevoked(accid);
 		uint32 lsid = 0;
 		database.GetAccountIDByName(iName, &tmpadmin, &lsid);
-		auto tmp = new ClientListEntry(GetNextCLEID(), lsid, iName, iPassword, tmpadmin, 0, 0, 2, tmprevoked);
+		auto tmp = new ClientListEntry(GetNextCLEID(), lsid, iName, "None", iPassword, tmpadmin, 0, 0, 2, tmprevoked);
 		clientlist.Append(tmp);
 		return tmp;
 	}
@@ -1466,7 +1332,7 @@ bool ClientList::IsAccountInGame(uint32 iLSID) {
 	LinkedListIterator<ClientListEntry*> iterator(clientlist);
 
 	while (iterator.MoreElements()) {
-		if (iterator.GetData()->LSID() == iLSID && iterator.GetData()->Online() == CLE_Status::InZone) {
+		if (iterator.GetData()->LSID() == iLSID && (iterator.GetData()->Online() == CLE_Status::InZone || iterator.GetData()->Online() == CLE_Status::OfflineBazaar)) {
 			return true;
 		}
 		iterator.Advance();
@@ -1476,7 +1342,10 @@ bool ClientList::IsAccountInGame(uint32 iLSID) {
 }
 
 int ClientList::GetClientCount() {
-	return(numplayers);
+
+	uint32 cached_gm_trader_count = cached_gm_count + cached_trader_count;
+
+	return(cached_gm_trader_count > clientlist.Count() ? cached_gm_trader_count : clientlist.Count() - cached_gm_trader_count);
 }
 
 void ClientList::GetClients(const char *zone_name, std::vector<ClientListEntry *> &res) {

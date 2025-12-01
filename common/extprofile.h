@@ -64,6 +64,7 @@ struct ExtendedProfile_Struct {
 	uint32				married_character_id;
 	uint8				char_export_flag;
 	uint32				e_times_rebirthed;
+	uint32				e_ng_respecs_remaining;
 };
 
 #pragma pack()

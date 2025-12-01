@@ -622,6 +622,16 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet& p)
 			}
 			break;
 		}
+
+		case ServerOP_KickPlayerAccount: {
+			ServerKickPlayerAccount_Struct* skp = (ServerKickPlayerAccount_Struct*)pack->pBuffer;
+			Client* client = entity_list.GetClientByAccID(skp->AccountID);
+			if (client != nullptr) {
+				client->WorldKick();
+			}
+			break;
+		}
+
 		case ServerOP_KillPlayer: {
 			ServerKillPlayer_Struct* skp = (ServerKillPlayer_Struct*) pack->pBuffer;
 			Client* client = entity_list.GetClientByName(skp->target);
@@ -2243,6 +2253,7 @@ bool WorldServer::SendChannelMessage(const char* from, uint8 chan_num, uint32 gu
 	else {
 		strn0cpy(scm->from, from, sizeof(scm->from));
 	}
+
 	scm->to[0] = 0;
 	scm->deliverto[0] = '\0';
 	scm->chan_num = chan_num;

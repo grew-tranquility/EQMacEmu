@@ -222,6 +222,8 @@ public:
 
 	void ClearPlayerInfoAndGrantStartingItems();
 	void ResetPlayerForNewGamePlus(uint8 new_level, uint8 new_level2, bool reset_skill_points);
+	bool ConsumeNGRespec();
+	uint32 GetNGRespecsRemaining();
 	int GetModCharacterFactionLevel(int faction);
 	int GetStartZone();
 	void KeyRingAdd(uint32 item);

@@ -859,7 +859,7 @@ uint32 Corpse::GetWornItem(int16 equipSlot) const {
 	end = itemlist.end();
 	for (; cur != end; ++cur) {
 		LootItem* item = *cur;
-		if (item->equip_slot == equipSlot) {
+		if (item && item->equip_slot == equipSlot) {
 			return item->item_id;
 		}
 	}
@@ -876,7 +876,7 @@ void Corpse::RemoveItem(uint16 lootslot) {
 	end = itemlist.end();
 	for (; cur != end; ++cur) {
 		LootItem* sitem = *cur;
-		if (sitem->lootslot == lootslot) {
+		if (sitem && sitem->lootslot == lootslot) {
 			RemoveItem(sitem);
 			return;
 		}
@@ -1722,7 +1722,7 @@ void Corpse::LootCorpseItem(Client* client, const EQApplicationPacket* app) {
 		args.push_back(this);
 		parse->EventPlayer(EVENT_LOOT, client, export_string, 0, &args);
 
-		if (player_event_logs.IsEventEnabled(PlayerEvent::LOOT_ITEM) && !IsPlayerCorpse()) {
+		if (inst && player_event_logs.IsEventEnabled(PlayerEvent::LOOT_ITEM) && !IsPlayerCorpse()) {
 			auto e = PlayerEvent::LootItemEvent{
 				.item_id = inst->GetItem()->ID,
 				.item_name = inst->GetItem()->Name,
@@ -2199,8 +2199,7 @@ void Corpse::IsOwnerOnline()
 
 	if(!client)
 	{
-		uint32 accountid = database.GetAccountIDByChar(GetCharID());
-		client = entity_list.GetClientByAccID(accountid);
+		client = entity_list.GetClientByAccID(GetCharID());
 
 		if(!client)
 		{
@@ -2212,7 +2211,7 @@ void Corpse::IsOwnerOnline()
 			online->zoneid = zone->GetZoneID();
 			online->zoneguildid = zone->GetGuildID();
 			online->online = 0;
-			online->accountid = accountid;
+			online->accountid = GetCharID();
 			worldserver.SendPacket(pack);
 			safe_delete(pack);
 		}

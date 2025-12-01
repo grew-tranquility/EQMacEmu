@@ -297,7 +297,7 @@ int Client::HandlePacket(const EQApplicationPacket *app)
 	LogPacketClientServer(
 		"[{}] [{:#06x}] Size [{}] {}",
 		OpcodeManager::EmuToName(app->GetOpcode()),
-		eqs->GetOpcodeManager()->EmuToEQ(app->GetOpcode()),
+		eqs ? eqs->GetOpcodeManager()->EmuToEQ(app->GetOpcode()) : 0,
 		app->Size(),
 		(LogSys.IsLogEnabled(Logs::Detail, Logs::PacketClientServer) ? DumpPacketToString(app) : "")
 	);
@@ -342,7 +342,8 @@ int Client::HandlePacket(const EQApplicationPacket *app)
 
 		break;
 	}
-	case CLIENT_CONNECTED: {
+	case CLIENT_CONNECTED:
+	{
 		ClientPacketProc p;
 		p = ConnectedOpcodes[opcode];
 		if(p == nullptr) { 
@@ -360,6 +361,7 @@ int Client::HandlePacket(const EQApplicationPacket *app)
 	case CLIENT_KICKED:
 	case DISCONNECTED:
 	case CLIENT_LINKDEAD:
+	case CLIENT_OFFLINE_TRADER:
 	case PREDISCONNECTED:
 	case ZONING:
 	case CLIENT_WAITING_FOR_AUTH:
@@ -381,6 +383,9 @@ void Client::CompleteConnect()
 	hpupdate_timer.Start();
 	position_timer.Start();
 	autosave_timer.Start();
+
+	OnAFKTimerChanged();
+
 	SetDuelTarget(0);
 	SetDueling(false);
 
@@ -505,7 +510,17 @@ void Client::CompleteConnect()
 			}
 			case SE_SummonHorse:
 			{
-				SummonHorse(buffs[j1].spellid);
+				if (zone->GetGuildID() != 1)
+				{
+					SummonHorse(buffs[j1].spellid);
+				}
+				else
+				{
+					// No horses in PVP zones
+					if (IsClient())
+						Message(Chat::Red, "You can't summon a horse in a PVP zone.");
+					BuffFadeByEffect(SE_SummonHorse);
+				}
 				//hasmount = true;	//this was false, is that the correct thing?
 				break;
 			}
@@ -569,7 +584,7 @@ void Client::CompleteConnect()
 	{
 		if (m_petinfo.SpellID > 1 && !GetPet() && m_petinfo.SpellID <= SPDAT_RECORDS) {
 			MakePoweredPet(m_petinfo.SpellID, spells[m_petinfo.SpellID].teleport_zone, m_petinfo.petpower,
-				m_petinfo.Name, m_petinfo.size);
+				m_petinfo.Name);
 			if (GetPet() && GetPet()->IsNPC()) {
 				NPC* pet = GetPet()->CastToNPC();
 				pet->SetPetState(m_petinfo.Buffs, m_petinfo.Items);
@@ -764,6 +779,23 @@ void Client::CompleteConnect()
 		ForceGoToDeath();
 	}
 
+	// Updates the client's Server ruleset flags when it enters a PvP or non-PvP zone.
+	// This causes the client to accurately show a few bonus features like the correct debuff amounts caused by players.
+	auto* rule_sets_app = new EQApplicationPacket(OP_LogServer, sizeof(RuleSets_Struct));
+	RuleSets_Struct* rule_sets = (RuleSets_Struct*)rule_sets_app->pBuffer;
+	if (zone && zone->GetGuildID() == 1)
+		rule_sets->enable_pvp = 1; // 1 is Rallos-like, 4 is Sullon-like (shouldn't use Sullon as it causes a lot of side-affects)
+	else
+		rule_sets->enable_pvp = (RuleI(World, PVPSettings));
+	if (RuleI(World, FVNoDropFlag) == 1 || RuleI(World, FVNoDropFlag) == 2 && Admin() > RuleI(Character, MinStatusForNoDropExemptions))
+		rule_sets->enable_FV = 1;
+	rule_sets->auto_identify = 0;
+	rule_sets->NameGen = 1;
+	rule_sets->Gibberish = 1;
+	rule_sets->test_server = 0;
+	QueuePacket(rule_sets_app);
+	safe_delete(rule_sets_app);
+
 	// Begins the shared bank negotiation with the client. Server sends how many slots are possible, waits to hear what the client supports.
 	// Upon client response, server will (optionally) enable the bank and stream the contents.
 	int shared_bank_bags = RuleI(Quarm, SharedBankBags);
@@ -807,6 +839,9 @@ void Client::Handle_Connect_OP_ClientError(const EQApplicationPacket *app)
 
 void Client::Handle_Connect_OP_ClientUpdate(const EQApplicationPacket *app)
 {
+	if (character_id == 0)
+		return;
+
 	conn_state = ClientReadyReceived;
 
 	CompleteConnect();
@@ -1123,7 +1158,7 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
 		// have a ghost maybe?
 		/* Check for Client Spoofing */
 		Client* client = entity_list.GetClientByName(cze->char_name);
-		if (client != 0) {
+		if (client != 0 && eqs) {
 			uint16 remote_port = ntohs(eqs->GetRemotePort());
 			if (client->GetIP() != eqs->GetRemoteIP() || client->GetPort() != remote_port) {
 				struct in_addr ghost_addr;
@@ -1215,7 +1250,7 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
 
 	strcpy(name, cze->char_name);
 	/* Check for Client Spoofing */
-	if (client != 0) {
+	if (client != 0 && eqs) {
 		uint16 remote_port = ntohs(eqs->GetRemotePort());
 		if (client->GetIP() != eqs->GetRemoteIP() || client->GetPort() != remote_port) {
 			struct in_addr ghost_addr;
@@ -1281,11 +1316,21 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
 		firstlogon = atoi(row[0]);
 	}
 
+	original_account_id = acct_id;
+
 	/* Do not write to the PP prior to this otherwise it will just be overwritten when it's loaded from the DB */
 	loaditems = database.GetInventory(acct_id, cid, &m_inv); /* Load Character Inventory */
 	database.LoadCharacterBindPoint(cid, &m_pp); /* Load Character Bind */
-	database.LoadCharacterCurrency(cid, &m_pp); /* Load Character Currency into PP */
 	database.LoadCharacterData(cid, &m_pp, &m_epp); /* Load Character Data from DB into PP as well as E_PP */
+
+	if (m_epp.solo_only || m_epp.self_found)
+		SetLoadedAsSoloOrSelfFound();
+
+	if (IsLoadedAsSoloOrSelfFound())
+		database.LoadCharacterCurrency(cid, &m_pp); /* Load Character Currency into PP */
+	else
+		database.LoadAccountCurrency(acct_id, cid, &m_pp);
+
 	database.LoadCharacterSkills(cid, &m_pp); /* Load Character Skills */
 	database.LoadCharacterSpellBook(cid, &m_pp); /* Load Character Spell Book */
 	database.LoadCharacterMemmedSpells(cid, &m_pp);  /* Load Character Memorized Spells */
@@ -1453,6 +1498,14 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
 	m_Position.y = m_pp.y;
 	m_Position.z = m_pp.z;
 	m_Position.w = m_pp.heading * 0.5f;
+
+	if (zone->GetZoneID() == Zones::NEXUS && m_Position.x >= -3 && m_Position.x <= 3 && m_Position.y >= -3 && m_Position.y <= 3)
+	{
+		m_Position.x = m_pp.x = zone->random.Real(-20.0, 20.0);
+		m_Position.y = m_pp.y = zone->random.Real(-20.0, 20.0);
+		m_Position.z = m_pp.z = -33.0f;
+	}
+
 	race = m_pp.race;
 	base_race = m_pp.race;
 	gender = m_pp.gender;
@@ -1729,7 +1782,7 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
 	uint16 expansion = 0;
 	bool mule = false;
 	uint32 force_guild;
-	database.GetAccountRestriction(AccountID(), expansion, mule, force_guild);
+	database.GetAccountRestriction(AccountID(), forum_name, expansion, mule, force_guild);
 	m_pp.force_guild_id = force_guild;
 	if (m_pp.force_guild_id != 0)
 	{
@@ -2124,6 +2177,20 @@ void Client::Handle_OP_AAAction(const EQApplicationPacket *app)
 		return;
 	}
 
+	if (GetLevel() < 51)
+	{
+		Message(Chat::Yellow, "You must be level 51 or higher to use Alternate Abilities.");
+		if (m_epp.perAA > 0u)
+		{
+			// Ensure their AA exp% is reset to 0% when below 51.
+			Message_StringID(Chat::White, StringID::AA_OFF); //OFF
+			m_epp.perAA = 0u;
+		}
+		SendAAStats();
+		SendAATable();
+		return;
+	}
+
 	if (strncmp((char *)app->pBuffer, "on ", 3) == 0)
 	{
 		if (m_epp.perAA == 0)
@@ -2178,7 +2245,6 @@ void Client::Handle_OP_AAAction(const EQApplicationPacket *app)
 
 		if (GetBoatNPCID() > 0)
 		{
-			ResetAATimer(activate, StringID::TOO_DISTRACTED);
 			return;
 		}
 
@@ -2316,7 +2382,7 @@ void Client::Handle_OP_AutoAttack(const EQApplicationPacket *app)
 		}
 	}
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "You cannot autoattack as a GM.");
 		return;
@@ -2883,14 +2949,14 @@ void Client::Handle_OP_CastSpell(const EQApplicationPacket *app)
 		return;
 	}
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "You cannot cast spells as a GM.");
 		InterruptSpell(castspell->spell_id);
 		return;
 	}
 
-	if (Admin() > 0 && IsValidSpell(castspell->spell_id)) {
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0 && IsValidSpell(castspell->spell_id)) {
 		Mob* SpellTarget = entity_list.GetMob(castspell->target_id);
 		char szArguments[512];
 		sprintf(szArguments, "ID %i (%s), Slot %i, InvSlot %i", castspell->spell_id, spells[castspell->spell_id].name, castspell->slot, castspell->inventoryslot);
@@ -2965,7 +3031,7 @@ void Client::Handle_OP_CastSpell(const EQApplicationPacket *app)
 
 				if ((item->Click.Type == EQ::item::ItemEffectClick) || (item->Click.Type == EQ::item::ItemEffectExpendable) || (item->Click.Type == EQ::item::ItemEffectEquipClick) || (item->Click.Type == EQ::item::ItemEffectClick2))
 				{
-					int32 casttime_ = item->CastTime_ != 0 && zone->GetGuildID() != 0 && zone->GetZoneExpansion() == content_service.GetCurrentExpansion()
+					int32 casttime_ = item->CastTime_ != 0 && (zone->GetGuildID() == 1 || zone->GetGuildID() != GUILD_NONE && zone->GetZoneExpansion() == content_service.GetCurrentExpansion() )
 						? item->CastTime_ // cast time override for current expansion instances
 						: item->CastTime; // normal cast time
 					// Clickies with 0 casttime and expendable items had no level or regeant requirement on AK. Also, -1 casttime was instant cast.
@@ -3159,7 +3225,7 @@ void Client::Handle_OP_ClickObject(const EQApplicationPacket *app)
 		
 		if (object->IsPlayerDrop())
 		{
-			if (Admin() > 0)
+			if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 			{
 				msg = "You cannot pick up dropped player items because you're a GM and that would make the players around you a sad panda.";
 			}
@@ -3590,7 +3656,7 @@ void Client::Handle_OP_CombatAbility(const EQApplicationPacket *app)
 	}
 
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "You cannot use abilities or thrown items as a GM.");
 		return;
@@ -4056,7 +4122,7 @@ void Client::Handle_OP_CreateObject(const EQApplicationPacket *app)
 		}
 	}
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		EQ::ItemInstance *inst = m_inv.GetItem(EQ::invslot::slotCursor);
 		if (inst)
@@ -4900,11 +4966,8 @@ void Client::Handle_OP_GMKick(const EQApplicationPacket *app)
 		if (!worldserver.Connected())
 			Message(Chat::White, "Error: World server disconnected");
 		else {
-			auto pack = new ServerPacket(ServerOP_KickPlayer, sizeof(ServerKickPlayer_Struct));
+			auto pack = new ServerPacket(ServerOP_KickPlayerAccount, sizeof(ServerKickPlayer_Struct));
 			ServerKickPlayer_Struct* skp = (ServerKickPlayer_Struct*)pack->pBuffer;
-			strcpy(skp->adminname, gmk->gmname);
-			strcpy(skp->name, gmk->name);
-			skp->adminrank = this->Admin();
 			worldserver.SendPacket(pack);
 			safe_delete(pack);
 		}
@@ -5454,7 +5517,7 @@ void Client::Handle_OP_GroupFollow(const EQApplicationPacket *app)
 		return;
 	}
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "You are a GM. Do not join raids or groups.");
 		database.SetHackerFlag(account_name, GetCleanName(), "GM attempted to join a group or raid.");
@@ -5650,7 +5713,7 @@ void Client::Handle_OP_GroupInvite2(const EQApplicationPacket *app)
 		return;
 	}
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "You are a GM. Do not join raids or groups.");
 		database.SetHackerFlag(account_name, GetCleanName(), "GM attempted to join a group or raid.");
@@ -5676,7 +5739,7 @@ void Client::Handle_OP_GroupInvite2(const EQApplicationPacket *app)
 				return;
 			}
 
-			if (Invitee->CastToClient()->Admin() > 0)
+			if (RuleB(Quarm, EnableAdminChecks) && Invitee->CastToClient()->Admin() > 0)
 			{
 				Message(Chat::Red, "You are inviting a GM. This will never work.");
 				return;
@@ -6923,6 +6986,8 @@ void Client::Handle_OP_PetCommands(const EQApplicationPacket *app)
 		if ((mypet->GetPetType() == petAnimation && GetAA(aaAnimationEmpathy) >= 1) || mypet->GetPetType() != petAnimation) {
 			mypet->Say_StringID(Chat::PetResponse, StringID::PET_FOLLOWING);
 			mypet->SetPetOrder(SPO_Follow);
+			if (mypet->IsNPC() && mypet->CastToNPC()->IsGuarding())
+				mypet->CastToNPC()->SaveGuardSpot(true);
 			mypet->SendAppearancePacket(AppearanceType::Animation, Animation::Standing);
 		}
 		break;
@@ -6956,6 +7021,8 @@ void Client::Handle_OP_PetCommands(const EQApplicationPacket *app)
 			mypet->SetHeld(false);
 			mypet->Say_StringID(Chat::PetResponse, StringID::PET_GUARDME_STRING);
 			mypet->SetPetOrder(SPO_Follow);
+			if (mypet->IsNPC() && mypet->CastToNPC()->IsGuarding())
+				mypet->CastToNPC()->SaveGuardSpot(true);
 			mypet->SendAppearancePacket(AppearanceType::Animation, Animation::Standing);
 		}
 		break;
@@ -6981,7 +7048,17 @@ void Client::Handle_OP_PetCommands(const EQApplicationPacket *app)
 
 		if ((mypet->GetPetType() == petAnimation && GetAA(aaAnimationEmpathy) >= 3) || mypet->GetPetType() != petAnimation) {
 			mypet->Say_StringID(Chat::PetResponse, StringID::PET_SIT_STRING);
-			mypet->SetPetOrder(SPO_Follow);
+			if (mypet->IsNPC())
+			{
+				if(mypet->CastToNPC()->IsGuarding())
+					mypet->SetPetOrder(SPO_Guard);
+				else
+					mypet->SetPetOrder(SPO_Follow);
+			}
+			else
+			{
+				mypet->SetPetOrder(SPO_Follow);
+			}
 			mypet->SendAppearancePacket(AppearanceType::Animation, Animation::Standing);
 		}
 		break;
@@ -7282,7 +7359,7 @@ void Client::Handle_OP_RaidCommand(const EQApplicationPacket *app)
 		return;
 	}
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "You are a GM. Do not join raids or groups.");
 		database.SetHackerFlag(account_name, GetCleanName(), "GM attempted to join a group or raid.");
@@ -7308,7 +7385,7 @@ void Client::Handle_OP_RaidCommand(const EQApplicationPacket *app)
 				return;
 			}
 
-			if (i->Admin() > 0)
+			if (RuleB(Quarm, EnableAdminChecks) && i->Admin() > 0)
 			{
 				Message(Chat::Red, "This player is a GM and cannot join your raid.");
 				return;
@@ -7801,7 +7878,7 @@ void Client::Handle_OP_RezzAnswer(const EQApplicationPacket *app)
 {
 	VERIFY_PACKET_LENGTH(OP_RezzAnswer, app, Resurrect_Struct);
 
-	const auto *r = (const Resurrect_Struct*)app->pBuffer;
+	auto *r = (Resurrect_Struct*)app->pBuffer;
 
 	LogSpells(
 		"[Client::Handle_OP_RezzAnswer] Received OP_RezzAnswer from client. Pendingrezzexp is [{}] action is [{}]",
@@ -7812,7 +7889,8 @@ void Client::Handle_OP_RezzAnswer(const EQApplicationPacket *app)
 	OPRezzAnswer(r->action, r->spellid, r->zone_id, 0, r->x, r->y, r->z);
 
 	if (r->action == ResurrectionActions::Accept) {
-		if (player_event_logs.IsEventEnabled(PlayerEvent::REZ_ACCEPTED)) {
+		if (IsValidSpell(r->spellid) && r->rezzer_name[0] != '\0' && player_event_logs.IsEventEnabled(PlayerEvent::REZ_ACCEPTED)) {
+			r->rezzer_name[63] = '\0'; // Ensure null termination
 			auto e = PlayerEvent::ResurrectAcceptEvent{
 				.resurrecter_name = r->rezzer_name,
 				.spell_name = spells[r->spellid].name,
@@ -8282,15 +8360,15 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
 	}
 	else if (merchantid == 1 && item_id == 0)
 	{
-		for (auto item : item_reimbursement_list)
+		for (auto item_reimb : item_reimbursement_list)
 		{
-			if (item.slot == mp->itemslot)
+			if (item_reimb.slot == mp->itemslot)
 			{
-				if (mp->itemslot == item.slot) {
-					item_id = item.item;
+				if (mp->itemslot == item_reimb.slot) {
+					item_id = item_reimb.item;
 					tmpmer_used = true;
 					reimbursement_used = true;
-					prevcharges = item.charges;
+					prevcharges = item_reimb.charges;
 					break;
 				}
 			}
@@ -8323,7 +8401,7 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
 		return;
 	}
 
-	if (Admin() > 0 && tmpmer_used)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0 && tmpmer_used)
 	{
 		Message(Chat::Red, "That item isn't normally sold here. You are a GM. You'd be griefing players. The gods weep today.");
 		QueuePacket(returnapp);
@@ -8441,7 +8519,7 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
 	bool stacked = TryStacking(inst);
 	bool bag = false;
 	bool cursor = true;
-	if (inst->IsType(EQ::item::ItemClassBag))
+	if (inst && inst->IsType(EQ::item::ItemClassBag))
 	{
 		bag = true;
 		cursor = false;
@@ -8552,7 +8630,7 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
 	}
 	// end QS code
 
-	if (player_event_logs.IsEventEnabled(PlayerEvent::MERCHANT_PURCHASE)) {
+	if (item && tmp && player_event_logs.IsEventEnabled(PlayerEvent::MERCHANT_PURCHASE)) {
 		auto e = PlayerEvent::MerchantPurchaseEvent{
 			.npc_id = tmp->GetNPCTypeID(),
 			.merchant_name = tmp->GetCleanName(),
@@ -8629,7 +8707,7 @@ void Client::Handle_OP_ShopPlayerSell(const EQApplicationPacket *app)
 		return;
 	}
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "Just use commands. You're literally a GM, silly goose.");
 		auto outapp = new EQApplicationPacket(OP_ShopPlayerSell, sizeof(OldMerchant_Purchase_Struct));
@@ -8738,7 +8816,7 @@ void Client::Handle_OP_ShopPlayerSell(const EQApplicationPacket *app)
 	}
 	// end QS code
 
-	if (player_event_logs.IsEventEnabled(PlayerEvent::MERCHANT_SELL)) {
+	if (item && vendor && player_event_logs.IsEventEnabled(PlayerEvent::MERCHANT_SELL)) {
 		auto e = PlayerEvent::MerchantSellEvent{
 			.npc_id = vendor->GetNPCTypeID(),
 			.merchant_name = vendor->GetCleanName(),
@@ -9522,7 +9600,13 @@ void Client::Handle_OP_Trader(const EQApplicationPacket *app)
 	if(zone->GetZoneID() != Zones::BAZAAR)
 		return;
 
-	if (Admin() > 0)
+	if (!RuleB(Quarm, EnableBazaar))
+	{
+		Message(Chat::Red, "Trader mode is not available on Project Quarm at this time. Please wait until the release of Offline Traders.");
+		return;
+	}
+
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "You are a GM. You cannot use the bazaar. Use the dev server for that.");
 		return;
@@ -9585,7 +9669,7 @@ void Client::Handle_OP_Trader(const EQApplicationPacket *app)
 				Message(Chat::Red, "You are solo or self found only, and cannot list or sell items in The Bazaar.");
 				return;
 			}
-			if (Admin() > 0)
+			if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 			{
 				Message(Chat::Red, "You are a GM. You cannot list items for sale. Use the dev server for that.");
 				database.SetHackerFlag(account_name, GetCleanName(), "GM attempted to sell an item on the Bazaar.");
@@ -9733,7 +9817,7 @@ void Client::Handle_OP_TraderBuy(const EQApplicationPacket *app)
 		return;
 	}
 
-	if (Admin() > 0)
+	if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 	{
 		Message(Chat::Red, "You are a GM. You cannot list items for sale. Use the dev server for that.");
 		database.SetHackerFlag(account_name, GetCleanName(), "GM attempted to sell an item on the Bazaar.");
@@ -9823,14 +9907,14 @@ void Client::Handle_OP_TradeRequest(const EQApplicationPacket *app)
 			return;
 		}
 
-		if (Admin() > 0)
+		if (RuleB(Quarm, EnableAdminChecks) && Admin() > 0)
 		{
 			Message(Chat::Red, "You are a GM. You cannot trade with other players. Use the dev server for that.");
 			database.SetHackerFlag(account_name, GetCleanName(), "GM attempted to trade with another player instead of using GM commands.");
 			return;
 		}
 
-		if (tradee->CastToClient()->Admin() > 0)
+		if (RuleB(Quarm, EnableAdminChecks) && tradee->CastToClient()->Admin() > 0)
 		{
 			Message(Chat::YouMissOther, "You attempt to trade with a GM, but miss!");
 			return;

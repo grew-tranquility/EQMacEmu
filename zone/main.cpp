@@ -89,6 +89,7 @@
 #endif
 
 extern volatile bool is_zone_loaded;
+extern volatile bool is_zone_finished;
 
 #include "../common/file.h"
 #include "../common/path_manager.h"
@@ -551,6 +552,7 @@ int main(int argc, char** argv) {
 	process_timer.Start(32, true);
 
 	EQ::EventLoop::Get().Run();
+	is_zone_finished = true;
 
 	entity_list.Clear();
 	entity_list.RemoveAllEncounters(); // gotta do it manually or rewrite lots of shit :P

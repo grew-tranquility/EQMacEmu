@@ -16,7 +16,8 @@ typedef enum
 	Online,
 	CharSelect,
 	Zoning,
-	InZone
+	InZone,
+	OfflineBazaar
 } CLE_Status;
 
 static const char* CLEStatusString[] = {
@@ -26,6 +27,7 @@ static const char* CLEStatusString[] = {
 	"CharSelect",
 	"Zoning",
 	"InZone"
+	"OfflineBazaar"
 };
 
 class ZoneServer;
@@ -33,7 +35,7 @@ struct ServerClientList_Struct;
 
 class ClientListEntry {
 public:
-	ClientListEntry(uint32 id, uint32 iLSID, const char* iLoginName, const char* iLoginKey, int16 iWorldAdmin = 0, uint32 ip = 0, uint8 local=0, uint8 version=0, int8 revoked = false);
+	ClientListEntry(uint32 id, uint32 iLSID, const char* iLoginName, const char* iForumName, const char* iLoginKey, int16 iWorldAdmin = 0, uint32 ip = 0, uint8 local=0, uint8 version=0, int8 revoked = false);
 	ClientListEntry(uint32 id, ZoneServer* iZS, ServerClientList_Struct* scl, CLE_Status iOnline);
 	~ClientListEntry();
 	bool	CheckStale();
@@ -67,6 +69,7 @@ public:
 	// Account stuff
 	inline uint32		AccountID() const		{ return paccountid; }
 	inline const char*	AccountName() const		{ return paccountname; }
+	inline const char* ForumName() const { return pforumname; }
 	inline int16		Admin() const			{ return padmin; }
 	inline void			SetAdmin(uint16 iAdmin)	{ padmin = iAdmin; }
 	inline void			SetAccountID(uint32 new_id) { paccountid = new_id; }
@@ -137,6 +140,7 @@ private:
 	// Account stuff
 	uint32	paccountid;
 	char	paccountname[32];
+	char	pforumname[32];
 	MD5		pMD5Pass;
 	int16	padmin;
 

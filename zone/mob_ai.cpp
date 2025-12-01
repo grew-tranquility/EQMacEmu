@@ -1405,7 +1405,7 @@ void Mob::AI_Process() {
 			AIloiter_timer->Pause();
 
         auto npcSpawnPoint = CastToNPC()->GetSpawnPoint();
-		if (zone && zone->GetGuildID() == 1) {
+		if (zone && zone->GetGuildID() == 1 && !zone->IsNoLeashPVPZone()) {
 			if (!(IsPet() && HasOwner() && GetOwner()->IsClient()))
 			{
 				float leash_range = RuleR(Quarm, PVPMobLeashUnits);
@@ -1536,7 +1536,17 @@ void Mob::AI_Process() {
 
 				if (IsPet() && GetPetOrder() == SPO_Sit && GetOwner()->IsClient()) {
 					SendAppearancePacket(AppearanceType::Animation, Animation::Standing);
-					SetPetOrder(SPO_Follow);
+					if (IsNPC())
+					{
+						if (CastToNPC()->IsGuarding())
+							SetPetOrder(SPO_Guard);
+						else
+							SetPetOrder(SPO_Follow);
+					}
+					else
+					{
+						SetPetOrder(SPO_Follow);
+					}
 				}
 
 				//try main hand first

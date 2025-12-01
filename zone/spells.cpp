@@ -503,6 +503,17 @@ bool Mob::DoCastSpell(uint16 spell_id, uint16 target_id, CastingSlot slot,
 	if (IsNPC() && cast_time == 0)		// NPC instant cast spells show a "begins to cast" message
 		orgcasttime = cast_time = 1;
 
+	if (zone && zone->GetGuildID() == 1)
+	{
+		switch (spell_id)
+		{
+			case 2734: // "The Nexus"
+			case 2771: // "Exodus"
+				cast_time = 8000;
+				break;
+		}
+	}
+
 	// we checked for spells not requiring targets above
 	if(target_id == 0) {
 		Log(Logs::Detail, Logs::Spells, "Spell Error: no target. spell=%d\n", GetName(), spell_id);
@@ -3405,6 +3416,18 @@ bool Mob::SpellOnTarget(uint16 spell_id, Mob* spelltar, bool reflect, bool use_r
 		CastToClient()->ApplyDurationFocus(spell_id, buffslot, spelltar, isrecourse ? recourse_spell_level : caster_spell_level);
 	}
 
+	if (IsClient() && IsSpecialDurationSpell(spell_id))
+	{
+		int buff_count = GetMaxTotalSlots();
+		for (int i = 0; i < buff_count; ++i)
+		{
+			if (buffs[i].spellid == spell_id)
+			{
+				CastToClient()->SendBuffDurationPacket(buffs[i].spellid, buffs[i].ticsremaining, buffs[i].casterlevel, i, buffs[i].instrumentmod);
+			}
+		}
+	}
+
 	Log(Logs::Detail, Logs::Spells, "Cast of %d by %s on %s complete successfully.", spell_id, GetName(), spelltar->GetName());
 
 	if (IsDetrimentalSpell(spell_id) && !is_tap_recourse)
@@ -3754,8 +3777,15 @@ bool Mob::IsImmuneToSpell(uint16 spell_id, Mob *caster, bool isProc)
 		return false;
 
 	if (IsDetrimentalSpell(spell_id) && !zone->CanDoCombat(caster, this)) {
-		caster->Message_StringID(Chat::SpellFailure, StringID::SPELL_WOULDNT_HOLD);
-		return true;
+		if (caster->IsClient() && caster->CastToClient()->GetGM())
+		{
+
+		}
+		else
+		{
+			caster->Message_StringID(Chat::SpellFailure, StringID::SPELL_WOULDNT_HOLD);
+			return true;
+		}
 	}
 
 	if(IsMezSpell(spell_id))
@@ -4110,7 +4140,7 @@ float Mob::CheckResistSpell(uint8 resist_type, uint16 spell_id, Mob *caster, Mob
 	}
 
 	// Lull spells DO NOT use regular resists on initial cast, instead they use a value of 15.  Prathun pseudocode and live parses confirm.  Late luclin era change
-	if (content_service.IsThePlanesOfPowerEnabled()) {
+	if (content_service.IsTheShadowsOfLuclinEnabled()) {
 		if (IsHarmonySpell(spell_id)) {
 			target_resist = 15;
 			Log(Logs::Detail, Logs::Spells, "CheckResistSpell(): Spell: %d  Lull spell is overriding MR. target_resist is: %i resist_modifier is: %i", spell_id, target_resist, resist_modifier);
@@ -4389,7 +4419,7 @@ float Mob::GetAOERange(uint16 spell_id) {
 
 	if (IsClient()) {
 
-		if(IsBardSong(spell_id) && IsBeneficialSpell(spell_id) && (spells[spell_id].targettype == ST_Group || spells[spell_id].targettype == ST_GroupTeleport)) {
+		if(IsBardSong(spell_id) && IsBeneficialSpell(spell_id) && (spells[spell_id].targettype == ST_Group || spells[spell_id].targettype == ST_GroupTeleport || spells[spell_id].targettype == ST_AEBard)) {
 			//Live AA - Extended Notes, SionachiesCrescendo
 			float song_bonus = static_cast<float>(aabonuses.SongRange + spellbonuses.SongRange + itembonuses.SongRange);
 			range += range*song_bonus /100.0f;

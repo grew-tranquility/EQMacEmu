@@ -5,6 +5,10 @@ void command_makemule(Client* c, const Seperator* sep)
 	if (!c) {
 		return;
 	}
+
+	c->Message(Chat::Red, "This command no longer functions.");
+	return;
+
 	if (c->IsMule()) {
 		c->Message(Chat::Red, "Account is already flagged as a mule.");
 		return;

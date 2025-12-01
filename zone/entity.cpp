@@ -2082,6 +2082,13 @@ Client *EntityList::GetClientByAccID(uint32 accid)
 void EntityList::ChannelMessageFromWorld(const char *from, const char *to,
 		uint8 chan_num, uint32 guild_id, uint8 language, uint8 lang_skill, const char *message)
 {
+	bool bIsPvP = false;
+	if (from && from[0] != 0)
+	{
+		if (strncasecmp(from, "PVP_Druzzil_Ro", 63) == 0)
+			bIsPvP = true;
+	}
+
 	for (auto it = client_list.begin(); it != client_list.end(); ++it) {
 		Client *client = it->second;
 
@@ -2101,7 +2108,9 @@ void EntityList::ChannelMessageFromWorld(const char *from, const char *to,
 		}
 		if(chan_num == ChatChannel_Guild && guild_id > 0 && client->GetGM() && client->IsGMInGuild(guild_id) && !client->IsInGuild(guild_id))
 			client->Message(Chat::Yellow,"[GM Monitor] %s tells the guild, '%s'", from, message);
-		else
+		else if (bIsPvP && client->GetPVP() != 0)
+			client->Message(Chat::Yellow, "[PVP] %s", message);
+		else if(!bIsPvP)
 			client->ChannelMessageSend(from, to, chan_num, language, lang_skill, message);
 	}
 }
@@ -2562,7 +2571,7 @@ void EntityList::UpdateWho(bool iSendFullUpdate)
 
 	auto it = client_list.begin();
 	while (it != client_list.end()) {
-		if (it->second->InZone()) {
+		if (it->second->InZone() || it->second->IsOfflineTrader()) {
 			if (iSendFullUpdate) {
 				it->second->UpdateWho();
 			} else {
@@ -5218,5 +5227,16 @@ void EntityList::ReloadMerchants() {
 			zone->ClearMerchantLists();
 			zone->LoadNewMerchantData(cur->MerchantType);
 		}
+	}
+}
+
+void EntityList::OnAFKCheckStateChanged() {
+	auto it = client_list.begin();
+	while (it != client_list.end()) {
+		if (it->second && it->second->GetID() > 0) {
+
+			it->second->OnAFKTimerChanged();
+		}
+		++it;
 	}
 }

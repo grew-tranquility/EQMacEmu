@@ -406,6 +406,10 @@ public:
 
 	bool LoadCharacterReimbursements(std::list<TempMerchantList>& item_reimbursements, uint32 character_id);
 
+	/* Account Inventory Stuff*/
+	bool LoadAccountCurrency(uint32 account_id, uint32 character_id, PlayerProfile_Struct* pp);
+	bool SaveAccountCurrency(uint32 account_id, uint32 character_id, PlayerProfile_Struct* pp);
+
 	/* Corpses  */
 	bool		DeleteItemOffCharacterCorpse(uint32 db_id, uint32 equip_slot, uint32 item_id);
 	uint32		GetCharacterCorpseItemCount(uint32 corpse_id);
@@ -472,6 +476,8 @@ public:
 	uint8	GetUseCFGSafeCoords();
 	int		getZoneShutDownDelay(uint32 zoneID);
 	bool	GetZoneBanishPoint(ZoneBanishPoint& into_zbp, const char* dest_zone);
+
+	uint32 GetZoneKickTimer(const char* dest_zone);
 
 	/* Spawns and Spawn Points  */
 	bool		LoadSpawnGroups(const char* zone_name, SpawnGroupList* spawn_group_list);

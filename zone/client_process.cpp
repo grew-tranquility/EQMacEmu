@@ -78,7 +78,7 @@ bool Client::Process() {
 		return false; //delete client
 	}
 
-	if(ClientDataLoaded() && (Connected() || IsLD()))
+	if(ClientDataLoaded() && (Connected() || IsLD() || IsOfflineTrader()))
 	{
 		// try to send all packets that weren't sent before
 		if(!IsLD() && zoneinpacket_timer.Check())
@@ -126,10 +126,12 @@ bool Client::Process() {
 			}
 		}
 
+		bool send_hp_update = false;
 		if(hpupdate_timer.Check())
 		{
 			CalcMaxHP();
-			DoHPRegen();
+			DoHPRegen(false);
+			send_hp_update = true;
 		}
 
 		if(mana_timer.Check())
@@ -494,7 +496,12 @@ bool Client::Process() {
 			ProcessFatigue();
 			CalcMaxMana();
 			DoManaRegen();
+
+			int hp_start = GetHP();
+			int hp_max = GetMaxHP();
 			BuffProcess();
+			if (hp_start != GetHP() || hp_max != GetMaxHP())
+				send_hp_update = true;
 
 			if (fishing_timer.Check()) 
 			{
@@ -521,7 +528,16 @@ bool Client::Process() {
 			{
 				ItemTimerCheck();
 			}
+
+			if (kick_timer.Enabled() && kick_timer.Check())
+			{
+				Kick();
+				kick_timer.Disable();
+			}
 		}
+
+		if (!dead && send_hp_update)
+			SendHPUpdate();
 
 		if (apperance_timer.Check())
 		{
@@ -586,9 +602,9 @@ bool Client::Process() {
 	EQApplicationPacket *app = nullptr;
 
 	//Predisconnecting is a state where we expect a zone change packet, and the next packet HAS to be a zone change packet once you request to zone. Otherwise, bad things happen!
-	if(!eqs->CheckState(CLOSING) && client_state != PREDISCONNECTED && client_state != ZONING)
+	if(eqs && !eqs->CheckState(CLOSING) && client_state != PREDISCONNECTED && client_state != ZONING)
 	{
-		while(ret && (app = (EQApplicationPacket *)eqs->PopPacket())) {
+		while(eqs && ret && (app = (EQApplicationPacket *)eqs->PopPacket())) {
 			if(app)
 				ret = HandlePacket(app);
 			safe_delete(app);
@@ -602,7 +618,7 @@ bool Client::Process() {
 		entity_list.CheckClientAggro(this);
 	}
 
-	if (client_state != CLIENT_LINKDEAD && (client_state == PREDISCONNECTED || client_state == CLIENT_ERROR || client_state == DISCONNECTED || client_state == CLIENT_KICKED || !eqs->CheckState(ESTABLISHED)))
+	if (client_state != CLIENT_LINKDEAD && client_state != CLIENT_OFFLINE_TRADER && (client_state == PREDISCONNECTED || client_state == CLIENT_ERROR || client_state == DISCONNECTED || client_state == CLIENT_KICKED || eqs && !eqs->CheckState(ESTABLISHED)))
 	{
 		//client logged out or errored out
 		//ResetTrade();
@@ -1266,7 +1282,17 @@ void Client::OPRezzAnswer(uint32 Action, uint32 SpellID, uint16 ZoneID, uint32 G
 	if(PendingRezzXP < 0 || PendingRezzZoneID == 0) {
 		// pendingrezexp is set to -1 if we are not expecting an OP_RezzAnswer
 		Log(Logs::Detail, Logs::Spells, "Unexpected OP_RezzAnswer. Ignoring it.");
-		Message(Chat::Red, "You have already been resurrected.\n");
+		Message(Chat::Red, "You have already been resurrected.");
+		return;
+	}
+
+	if (zone->GetGuildID() == 1 && (zone->GetZoneID() != PendingRezzZoneID || PendingRezzZoneGuildID != 1))
+	{
+		Message(Chat::Red, "You cannot be resurrected from outside of this zone. Cancelling pending rez.");
+		PendingRezzZoneID = 0;
+		PendingRezzZoneGuildID = 0;
+		PendingRezzXP = -1;
+		PendingRezzSpellID = 0;
 		return;
 	}
 
@@ -1303,10 +1329,13 @@ void Client::OPRezzAnswer(uint32 Action, uint32 SpellID, uint16 ZoneID, uint32 G
 
 		entity_list.RemoveFromTargets(this);
 
+
 		//Was sending the packet back to initiate client zone...
 		//but that could be abusable, so lets go through proper channels
-		if(PendingRezzZoneID != 0 && PendingRezzZoneGuildID != 0)
+		if (PendingRezzZoneID != 0 && PendingRezzZoneGuildID != 0)
+		{
 			MovePCGuildID(PendingRezzZoneID, PendingRezzZoneGuildID, x, y, z, GetHeading() * 2.0f, 0, ZoneSolicited);
+		}
 	}
 	PendingRezzZoneID = 0;
 	PendingRezzZoneGuildID = 0;
@@ -2051,14 +2080,15 @@ void Client::OPGMSummon(const EQApplicationPacket *app)
 	}
 }
 
-void Client::DoHPRegen() 
+void Client::DoHPRegen(bool send_hp_update)
 {
 	if (GetHP() >= max_hp)
 		return;
 
 	SetHP(GetHP() + CalcHPRegen());
 	CalcAGI();
-	SendHPUpdate();
+	if (send_hp_update)
+		SendHPUpdate();
 }
 
 void Client::DoManaRegen() 

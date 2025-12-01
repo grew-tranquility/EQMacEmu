@@ -333,7 +333,7 @@ bool Client::SummonItem(uint32 item_id, int8 quantity, uint16 to_slot, bool forc
 		}
 	}
 
-	if (player_event_logs.IsEventEnabled(PlayerEvent::ITEM_CREATION)) {
+	if (item && player_event_logs.IsEventEnabled(PlayerEvent::ITEM_CREATION)) {
 		auto e = PlayerEvent::ItemCreationEvent{};
 		e.item_id = item->ID;
 		e.item_name = item->Name;
@@ -385,7 +385,7 @@ void Client::DropItem(int16 slot_id)
 
 	// Take control of item in client inventory
 	auto *inst = m_inv.PopItem(slot_id);
-	if(inst) {
+	if(inst && inst->GetItem()) {
 		int i = 0;
 
 		if (player_event_logs.IsEventEnabled(PlayerEvent::DROPPED_ITEM)) {
@@ -594,6 +594,15 @@ void Client::ResetStartingSkills()
 
 void Client::ClearPlayerInfoAndGrantStartingItems(bool goto_death)
 {
+	if (!loaded_as_solo_or_self_found)
+	{
+		SaveCurrency();
+
+		if (IsSoloOnly() || IsHardcore() || IsSelfFoundAny())
+		{
+			loaded_as_solo_or_self_found = true;
+		}
+	}
 
 	//Clear player's money.
 	ClearMoney();
@@ -612,6 +621,7 @@ void Client::ClearPlayerInfoAndGrantStartingItems(bool goto_death)
 	RefundAA();
 	SetAAPoints(0);
 	m_pp.aapoints_spent = 0;
+	m_epp.perAA = 0u;
 	
 	//Remove all factions.
 	database.RemoveAllFactions(this);
@@ -682,6 +692,21 @@ void Client::ClearPlayerInfoAndGrantStartingItems(bool goto_death)
 	}
 }
 
+bool Client::ConsumeNGRespec()
+{
+	if (m_epp.e_ng_respecs_remaining > 0) {
+		m_epp.e_ng_respecs_remaining--;
+		Save(1);
+		return true;
+	}
+	return false;
+}
+
+uint32 Client::GetNGRespecsRemaining()
+{
+	return m_epp.e_ng_respecs_remaining;
+}
+
 void Client::ResetPlayerForNewGamePlus(uint8 in_level, uint8 in_level2, bool reset_skill_points)
 {
 	// Revert player's bind location to default starting
@@ -692,6 +717,9 @@ void Client::ResetPlayerForNewGamePlus(uint8 in_level, uint8 in_level2, bool res
 	uint8 new_level = std::max(in_level, (uint8)1);
 	if (new_level < old_level) {
 		SetLevel(new_level, true);
+	}
+	if (new_level < 51) {
+		m_epp.perAA = 0u;
 	}
 
 	// Do additional skill cleanup if level2 was lowered
@@ -1442,16 +1470,18 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
 			}
 
 			DeleteItemInInventory(move_in->from_slot);
+			if (inst)
+			{
+				if (inst->GetItem() && player_event_logs.IsEventEnabled(PlayerEvent::ITEM_DESTROY)) {
+					auto e = PlayerEvent::DestroyItemEvent{
+						.item_id = inst->GetItem()->ID,
+						.item_name = inst->GetItem()->Name,
+						.charges = inst->GetCharges(),
+						.reason = "Client destroy cursor",
+					};
 
-			if (player_event_logs.IsEventEnabled(PlayerEvent::ITEM_DESTROY)) {
-				auto e = PlayerEvent::DestroyItemEvent{
-					.item_id = inst->GetItem()->ID,
-					.item_name = inst->GetItem()->Name,
-					.charges = inst->GetCharges(),
-					.reason = "Client destroy cursor",
-				};
-
-				RecordPlayerEventLog(PlayerEvent::ITEM_DESTROY, e);
+					RecordPlayerEventLog(PlayerEvent::ITEM_DESTROY, e);
+				}
 			}
 
 			return true; // Item destroyed by client

@@ -1133,6 +1133,18 @@ bool IsBuffSpell(uint16 spell_id)
 	return false;
 }
 
+bool IsSpecialDurationSpell(uint16 spell_id)
+{
+	if (IsValidSpell(spell_id)) {
+		// duration formula 100 always needs re-sent
+		if (spells[spell_id].buffdurationformula >= 200)
+			return true;
+	}
+
+	return false;
+}
+
+
 bool IsSuspendableSpell(uint16 spell_id)
 {
 	if (IsValidSpell(spell_id) && spells[spell_id].suspendable)

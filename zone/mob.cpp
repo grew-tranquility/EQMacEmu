@@ -5289,7 +5289,7 @@ void Mob::ApplyIllusion(const SPDat_Spell_Struct &spell, int i, Mob* caster)
 		if (RuleB(Quarm, CustomFrogloks) && IsClient() && spell_id == 3063)
 		{
 			// Quarm - PCs when using Illusion: Froglok become 'PC Froglok/Guktan' race (330)
-			custom_racial_illision = true;
+			custom_racial_illision = false;
 			spell_base = Race::Guktan;
 		}
 
@@ -5326,14 +5326,7 @@ void Mob::ApplyIllusion(const SPDat_Spell_Struct &spell, int i, Mob* caster)
 			case 1562:
 			case 1563:
 			{
-				if (GetBaseRace() == IKSAR && spell_base == WOLF)
-				{
-					gender = Gender::Female;
-				}
-				else
-				{
-					texture = 1;
-				}
+				texture = 1;
 				break;
 			}
 
@@ -5346,14 +5339,7 @@ void Mob::ApplyIllusion(const SPDat_Spell_Struct &spell, int i, Mob* caster)
 			// Great Wolf
 			case 427:
 			{
-				if (GetBaseRace() == IKSAR && spell_base == WOLF)
-				{
-					gender = Gender::Female;
-				}
-				else
-				{
 					texture = 2;
-				}
 				break;
 			}
 
@@ -5366,14 +5352,7 @@ void Mob::ApplyIllusion(const SPDat_Spell_Struct &spell, int i, Mob* caster)
 			// Greater Wolf
 			case 426:
 			{
-				if (GetBaseRace() == IKSAR && spell_base == WOLF)
-				{
-					gender = Gender::Female;
-				}
-				else
-				{
-					texture = 3;
-				}
+				texture = 3;
 				break;	
 			}
 
@@ -5383,41 +5362,12 @@ void Mob::ApplyIllusion(const SPDat_Spell_Struct &spell, int i, Mob* caster)
 				gender = Gender::Female;
 				break;
 			}
-
-			case 1416:
-			{
-				if (GetBaseRace() == GNOME)
-					spell_model_size = 4.0f;
-				break;
-			}
-
-      case 581:
-			case 643:
-      case 644:
-			case 1376:
-      case 1611:
-      {
-				if (GetBaseRace() == IKSAR && spell_base == SKELETON)
-				{
-					spell_base = IKSAR_SKELETON;
-					helmtexture = GetGender();
-				}
-
-				if (GetBaseRace() == GNOME && spell_id != 581)
-					spell_model_size = 4.0f;
-
-				break;
-      }
           
       // Remaining Wolf Illusions
 			case 425:
 			case 428:
 			case 3579:
 			{
-				if (GetBaseRace() == IKSAR && spell_base == WOLF)
-				{
-					gender = Gender::Female;
-				}
 				break;
 			}
 

@@ -1029,6 +1029,18 @@ void Lua_Client::ResetPlayerForNewGamePlus(uint8 new_level, uint8 new_level2, bo
 	self->ResetPlayerForNewGamePlus(new_level, new_level2, reset_skill_points);
 }
 
+bool Lua_Client::ConsumeNGRespec()
+{
+	Lua_Safe_Call_Bool();
+	return self->ConsumeNGRespec();
+}
+
+uint32 Lua_Client::GetNGRespecsRemaining()
+{
+	Lua_Safe_Call_Int();
+	return self->GetNGRespecsRemaining();
+}
+
 int Lua_Client::GetModCharacterFactionLevel(int faction) {
 	Lua_Safe_Call_Int();
 	return self->GetModCharacterFactionLevel(faction);
@@ -1626,6 +1638,8 @@ luabind::scope lua_register_client() {
 		.def("SendZoneFlagInfo", (void(Lua_Client::*)(Lua_Client))&Lua_Client::SendZoneFlagInfo)
 		.def("SetAATitle", (void(Lua_Client::*)(const char *))&Lua_Client::SetAATitle)
 		.def("GetClientVersion", (int(Lua_Client::*)(void))&Lua_Client::GetClientVersion)
+		.def("ConsumeNGRespec", (bool(Lua_Client::*)(void))&Lua_Client::ConsumeNGRespec)
+		.def("GetNGRespecsRemaining", (int(Lua_Client::*)(void))& Lua_Client::GetNGRespecsRemaining)
 		.def("GetClientVersionBit", (uint32(Lua_Client::*)(void))&Lua_Client::GetClientVersionBit)
 		.def("SetTitleSuffix", (void(Lua_Client::*)(const char *))&Lua_Client::SetTitleSuffix)
 		.def("SetAAPoints", (void(Lua_Client::*)(int))&Lua_Client::SetAAPoints)

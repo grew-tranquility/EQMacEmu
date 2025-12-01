@@ -1155,6 +1155,12 @@ void Client::Damage(Mob* other, int32 damage, uint16 spell_id, EQ::skills::Skill
 		}
 	}
 
+	if (other && other->IsClient())
+	{
+		if ((float)damage > (float)GetMaxHP() * (float)RuleR(Quarm, MaxPVPDamagePercent))
+			damage = (int)(float)((float)GetMaxHP() * (float)RuleR(Quarm, MaxPVPDamagePercent));
+	}
+
 	// 3 second flee stun check.  NPCs can stun players who are running away from them.  10% chance on hit
 	if (spell_id == SPELL_UNKNOWN && damage > 0 && other && other->IsNPC() && !other->IsPet() && other->GetLevel() > 4 && EQ::skills::IsMeleeWeaponSkill(attack_skill))
 	{
@@ -1377,7 +1383,14 @@ bool Client::Death(Mob* killerMob, int32 damage, uint16 spell, EQ::skills::Skill
 			if (killerMob && zone->GetGuildID() == 1)
 			{
 				std::string pvpKilledGuildName = GetGuildName();
-				entity_list.Message(0, 15, "[PVP] %s of <%s> has died to %s in combat!", GetCleanName(), pvpKilledGuildName.empty() ? " " : pvpKilledGuildName.c_str(), killerMob->GetCleanName());
+				std::string killer_message = "";
+				killer_message += GetCleanName();
+				killer_message += " of <";
+				killer_message += pvpKilledGuildName.empty() ? " " : pvpKilledGuildName.c_str();
+				killer_message += "> has died to ";
+				killer_message += killerMob->GetCleanName();
+				killer_message += " in combat!";
+				worldserver.SendChannelMessage("PVP_Druzzil_Ro", ChatChannel_Broadcast,0, 0, 100, killer_message.c_str());
 			}
 
 			killedby = Killed_NPC;
@@ -2116,7 +2129,7 @@ bool NPC::Death(Mob* killer_mob, int32 damage, uint16 spell, EQ::skills::SkillTy
 			kill_message += " in ";
 			kill_message += zone->GetLongName();
 			kill_message += "!";
-			worldserver.SendChannelMessage(zone->GetGuildID() == 1 ? "[PVP]Druzzil_Ro" : "Druzzil_Ro", zone->GetGuildID() == 1 ? ChatChannel_Broadcast : ChatChannel_Guild, zone->GetGuildID() == 1 ? 0 : zone->GetGuildID(), 0, 100, kill_message.c_str());
+			worldserver.SendChannelMessage(zone->GetGuildID() == 1 ? "PVP_Druzzil_Ro" : "Druzzil_Ro", zone->GetGuildID() == 1 ? ChatChannel_Broadcast : ChatChannel_Guild, zone->GetGuildID() == 1 ? 0 : zone->GetGuildID(), 0, 100, kill_message.c_str());
 		}
 	}
 
@@ -2598,8 +2611,13 @@ void Mob::AddToHateList(Mob* other, int32 hate, int32 damage, bool bFrenzy, bool
 			{
 				if (lootLockoutItr->second.HasLockout(Timer::GetTimeSeconds()))
 				{
-					other->CastToClient()->Message(Chat::Red, "You were locked out of %s. Sending you out.", GetCleanName() );
-					other->CastToClient()->BootFromGuildInstance(true);
+					// WORKAROUND: This HP check prevents a bug where you could be booted after a mob is already dead.
+					// This could happen if the mob is hit by a spell or arrow at almost the exact time it dies.
+					if(GetHP() > 0)
+					{
+						other->CastToClient()->Message(Chat::Red, "You were locked out of %s. Sending you out.", GetCleanName() );
+						other->CastToClient()->BootFromGuildInstance(true);
+					}
 				}
 			}
 		}

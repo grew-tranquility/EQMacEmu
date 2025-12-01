@@ -298,6 +298,7 @@ public:
 	void	Trader_ShowItems();
 	void	Trader_CustomerBrowsing(Client *Customer);
 	void	Trader_CustomerBought(Client *Customer, uint32 Price, uint32 ItemID, uint32 Quantity, const char* ItemName, uint8 SlotID);
+	void	BecomeOfflineTrader();
 	void	Trader_EndTrader();
 	void	Trader_StartTrader();
 	void	KeyRingLoad();
@@ -375,7 +376,13 @@ public:
 	void SavePetInfo(bool bClear = false);
 
 	/* New PP Save Functions */
-	bool SaveCurrency(){ return database.SaveCharacterCurrency(this->CharacterID(), &m_pp); }
+	inline bool SaveCurrency()
+	{
+		if (IsLoadedAsSoloOrSelfFound())
+			return database.SaveCharacterCurrency(CharacterID(), &m_pp);
+		else
+			return database.SaveAccountCurrency(original_account_id, CharacterID(), &m_pp);
+	}
 	bool SaveAA();
 	bool SaveCharacterMageloStats();
 
@@ -383,12 +390,13 @@ public:
 	inline bool Connected() const { return (client_state == CLIENT_CONNECTED); }
 	inline bool InZone() const { return (client_state == CLIENT_CONNECTED || client_state == CLIENT_LINKDEAD); }
 	inline void Kick() { client_state = CLIENT_KICKED; }
-	inline void Disconnect() { eqs->Close(); client_state = DISCONNECTED; }
-	inline void HardDisconnect() { eqs->Close(); client_state = DISCONNECTED; }
+	inline void Disconnect() { if(eqs) eqs->Close(); client_state = DISCONNECTED; }
+	inline void HardDisconnect() { if (eqs) eqs->Close(); client_state = DISCONNECTED; }
 	inline void SetZoningState() { client_state = ZONING; }
 	inline void	PreDisconnect() { client_state = PREDISCONNECTED; }
 	inline void	Reconnect() { client_state = CLIENT_CONNECTED; }
 	inline bool IsLD() const { return (bool) (client_state == CLIENT_LINKDEAD); }
+	inline bool IsOfflineTrader() const { return (bool)(client_state == CLIENT_OFFLINE_TRADER); }
 	void Kick(const std::string& reason);
 	void WorldKick();
 	inline uint8 GetAnon() const { return m_pp.anon; }
@@ -746,8 +754,12 @@ public:
 	inline uint32 GetWID() const { return WID; }
 	inline void SetWID(uint32 iWID) { WID = iWID; }
 	inline uint32 AccountID() const { return account_id; }
+	inline uint32 OriginalAccountID() const { return original_account_id; }
 
-	inline const char* AccountName()const { return account_name; }
+	inline const char* AccountName() const { return account_name; }
+	inline const char* ForumName() const { return forum_name; }
+	void SetAccountName(const char* target_account_name);
+	inline void SetAccountID(uint32 target_account_id) { account_id = target_account_id; }
 	inline int16 Admin() const { return admin; }
 	inline uint32 CharacterID() const { return character_id; }
 	void UpdateAdmin(bool iFromDB = true);
@@ -950,6 +962,10 @@ public:
 	bool	FindOnCursor(uint32 item_id);
 	void	ClearPlayerInfoAndGrantStartingItems(bool goto_death = true);
 
+	bool ConsumeNGRespec();
+
+	uint32 GetNGRespecsRemaining();
+
 	// Reset player back to spawn for NewGame+ type restarts
 	// - Faction is reset
 	// - Spells are unmemmed
@@ -1140,6 +1156,9 @@ public:
 	void TripInterrogateInvState() { interrogateinv_flag = true; }
 	bool GetInterrogateInvState() { return interrogateinv_flag; }
 
+	void SetLoadedAsSoloOrSelfFound() { loaded_as_solo_or_self_found = true; }
+	bool IsLoadedAsSoloOrSelfFound() { return loaded_as_solo_or_self_found; }
+
 	bool InterrogateInventory(Client* requester, bool log, bool silent, bool allowtrip, bool& error, bool autolog = true);
 
 	uint8 client_max_level;
@@ -1285,6 +1304,8 @@ public:
 	PlayerEvent::PlayerEvent GetPlayerEvent();
 	void RecordKilledNPCEvent(NPC *n);
 
+	void OnAFKTimerChanged();
+
 protected:
 	friend class Mob;
 	void CalcItemBonuses(StatBonuses* newbon);
@@ -1347,7 +1368,7 @@ private:
 	int32 CalcBaseHP(bool unbuffed = false);
 	int32 CalcHPRegen();
 	int32 CalcManaRegen(bool meditate = false);
-	void DoHPRegen();
+	void DoHPRegen(bool send_hp_update = true);
 	void DoManaRegen();
 
 	uint8 playeraction;
@@ -1469,6 +1490,7 @@ private:
 	Timer global_channel_timer;
 	Timer fishing_timer;
 	Timer autosave_timer;
+	Timer kick_timer;
 
 	Timer	proximity_timer;
 	Timer	charm_class_attacks_timer;
@@ -1520,6 +1542,8 @@ private:
 	bool tgb;
 	bool instalog;
 	int32 last_reported_mana;
+
+	char forum_name[31];
 
 	unsigned int AggroCount; // How many mobs are aggro on us.
 
@@ -1578,6 +1602,10 @@ private:
 	uint8 initial_respawn_selection;
 
 	bool interrogateinv_flag; // used to minimize log spamming by players
+
+	uint32 original_account_id;
+
+	bool loaded_as_solo_or_self_found; // used to minimize log spamming by players
 
 	void InterrogateInventory_(bool errorcheck, Client* requester, int16 head, int16 index, const EQ::ItemInstance* inst, const EQ::ItemInstance* parent, bool log, bool silent, bool &error, int depth);
 	bool InterrogateInventory_error(int16 head, int16 index, const EQ::ItemInstance* inst, const EQ::ItemInstance* parent, int depth);

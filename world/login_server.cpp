@@ -74,7 +74,23 @@ void LoginServer::ProcessUsertoWorldReq(uint16_t opcode, EQ::Net::Packet& p)
 	bool mule = false;
 	uint16 expansion = 0;
 	uint32 force_guild_id = 0;
-	database.GetAccountRestriction(id, expansion, mule, force_guild_id);
+	bool does_account_exist = true;
+	char forum_name[31] = { 0 };
+	database.GetAccountRestriction(id, forum_name, expansion, mule, force_guild_id);
+
+	if (id == 0) {
+		LogInfo("No world account found for LS account [{}] - will be created during authentication", utwr->lsaccountid);
+
+		id = utwr->lsaccountid;  // Temporary fallback for new accounts
+		status = 0; // Default status for new accounts
+		does_account_exist = false;
+	}
+
+	if (does_account_exist && utwr->forum_name[0] != '\0')
+	{
+		if(forum_name[0] == '\0' || forum_name[0] != '\0' && strcmp(forum_name, utwr->forum_name) != 0)
+			database.SetForumName(id, utwr->forum_name);
+	}
 
 	auto outpack = new ServerPacket;
 	outpack->opcode = ServerOP_UsertoWorldResp;
@@ -97,7 +113,7 @@ void LoginServer::ProcessUsertoWorldReq(uint16_t opcode, EQ::Net::Packet& p)
 	}
 
 	int32 x = Config->MaxClients;
-	if ((int32)numplayers >= x && x != -1 && x != 255 && status < 80)
+	if ((int32)client_list.GetClientCount() >= x && x != -1 && x != 255 && status < 80)
 		utwrs->response = -3;
 
 	if (status == -1)
@@ -108,21 +124,23 @@ void LoginServer::ProcessUsertoWorldReq(uint16_t opcode, EQ::Net::Packet& p)
 	if (utwrs->response == 1)
 	{
 		// active account checks
-		if (RuleI(World, AccountSessionLimit) >= 0 && status < (RuleI(World, ExemptAccountLimitStatus)) && (RuleI(World, ExemptAccountLimitStatus) != -1) && client_list.CheckAccountActive(id))
+		if (RuleI(World, AccountSessionLimit) >= 0 && status < (RuleI(World, ExemptAccountLimitStatus)) && (RuleI(World, ExemptAccountLimitStatus) != -1) && does_account_exist && client_list.ActiveConnectionKickStale(id))
 			utwrs->response = -4;
 	}
 	if (utwrs->response == 1)
 	{
 		// ip limit checks
 		if (!mule && RuleI(World, MaxClientsPerIP) >= 0 && !client_list.CheckIPLimit(id, utwr->ip, status))
+		{
 			utwrs->response = -5;
+		}
 	}
 
-	if (utwrs->response == 1)
+	if (client_list.GetClientCount() /* + client_queue.Count()*/ >= RuleI(Quarm, PlayerPopulationCap) && status == 0)
 	{
-		// ip limit checks
-		if (mule && RuleI(World, MaxMulesPerIP) >= 0 && !client_list.CheckMuleLimit(id, utwr->ip, status))
-			utwrs->response = -5;
+		utwrs->response = -3; // Queue player, don't allow entry
+		//We should really tell the WorldServer how much players are remaining in queue to determine this, but we can make that a world <-> login communication
+		//TODO: Implement queue logic
 	}
 
 	ipMutex.lock();
@@ -142,7 +160,8 @@ void LoginServer::ProcessLSClientAuth(uint16_t opcode, EQ::Net::Packet& p) {
 	try {
 		auto slsca = p.GetSerialize<ClientAuth>(0);
 
-		client_list.CLEAdd(slsca.loginserver_account_id, slsca.account_name, slsca.key, slsca.is_world_admin, slsca.ip_address, slsca.is_client_from_local_network, slsca.version);
+		slsca.forum_name[30] = '\0'; // Ensure null-termination
+		client_list.CLEAdd(slsca.loginserver_account_id, slsca.account_name, slsca.forum_name, slsca.key, slsca.is_world_admin, slsca.ip_address, slsca.is_client_from_local_network, slsca.version);
 	}
 	catch (std::exception& ex) {
 		LogError("Error parsing LSClientAuth packet from world.\n{0}", ex.what());
@@ -329,10 +348,10 @@ void LoginServer::SendStatus() {
 	else if (numzones <= 0)
 		lss->status = -1;
 	else
-		lss->status = numplayers > 0 ? numplayers : 0;
+		lss->status = client_list.GetClientCount() > 0 ? client_list.GetClientCount() : 0;
 
 	lss->num_zones = numzones;
-	lss->num_players = numplayers;
+	lss->num_players = client_list.GetClientCount();
 	SendPacket(pack);
 	delete pack;
 }

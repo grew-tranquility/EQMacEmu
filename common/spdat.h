@@ -775,6 +775,7 @@ bool IsDebuffSpell(uint16 spell_id);
 bool IsResistDebuffSpell(uint16 spell_id);
 bool IsSelfConversionSpell(uint16 spell_id);
 bool IsBuffSpell(uint16 spell_id);
+bool IsSpecialDurationSpell(uint16 spell_id);
 bool IsSuspendableSpell(uint16 spell_id);
 uint32 GetMorphTrigger(uint32 spell_id);
 bool IsCastonFadeDurationSpell(uint16 spell_id);

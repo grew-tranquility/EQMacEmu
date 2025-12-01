@@ -1714,6 +1714,15 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, int buffslot, int caster_lev
 #ifdef SPELL_EFFECT_SPAM
 				snprintf(effect_desc, _EDLEN, "Summon Mount: %s", spell.teleport_zone);
 #endif
+				if (zone && zone->GetGuildID() == 1)
+				{
+					// No horses in PVP zones
+					if (IsClient())
+						Message(Chat::Red, "You can't summon a horse in a PVP zone.");
+					BuffFadeByEffect(SE_SummonHorse);
+					break;
+				}
+
 				if(IsClient())	// NPCs can't ride
 				{
 					CastToClient()->SummonHorse(spell_id);
@@ -4633,27 +4642,17 @@ void Client::ApplyDurationFocus(uint16 spell_id, uint16 buffslot, Mob* spelltar,
 //for some stupid reason SK procs return theirs one base off...
 uint16 Mob::GetProcID(uint16 spell_id, uint8 effect_index)
 {
-	if (!RuleB(Spells, SHDProcIDOffByOne)) // UF+ spell files
-		return spells[spell_id].base[effect_index];
+	if (!IsValidSpell(spell_id))
+		return 0;
+	if (effect_index < 0 || effect_index >= EFFECT_COUNT)
+		return 0;
 
-	// We should actually just be checking if the mob is SHD, but to not force
-	// custom servers to create new spells, we will still do this
-	bool sk = false;
-	bool other = false;
-	for (int x = 0; x < 16; x++) {
-		if (x == 4) {
-			if (spells[spell_id].classes[4] < 255)
-				sk = true;
-		} else {
-			if (spells[spell_id].classes[x] < 255)
-				other = true;
-		}
-	}
 
-	if (sk && !other)
-		return spells[spell_id].base[effect_index] + 1;
-	else
-		return spells[spell_id].base[effect_index];
+	uint16 proc_spell_id = spells[spell_id].base[effect_index];
+	// this applies to everything, not just SK buffs.  there are SK versions of things like Blade Dance, Call of Sky Strike, etc.
+	if (GetClass() == Class::ShadowKnight)
+		return proc_spell_id + 1;
+	return proc_spell_id;
 }
 
 bool Mob::TryDivineSave()

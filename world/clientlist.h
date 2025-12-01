@@ -60,18 +60,14 @@ public:
 	ClientListEntry* FindCLEByCharacterID(uint32 iCharID);
 	ClientListEntry* GetCLE(uint32 iID);
 	void	ClearGroup(uint32 group_id);
-	ClientListEntry* RemoveCLEByAccountID(uint32 accountID);
 	bool	CheckIPLimit(uint32 iAccID, uint32 iIP, uint16 admin, ClientListEntry* cle = nullptr);
-	bool	CheckMuleLimit(uint32 iAccID, uint32 iIP, uint16 admin, ClientListEntry * cle = nullptr);
 	bool	CheckAccountActive(uint32 iAccID, ClientListEntry* cle = nullptr);
-	void	GetCLEIP(uint32 iIP);
-	void	DisconnectByIP(uint32 iIP);
-	bool	EnforceSessionLimit(uint32 iLSAccountID);
 	void	CLCheckStale();
 	void	CLEKeepAlive(uint32 numupdates, uint32* wid);
-	void	CLEAdd(uint32 iLSID, const char* iLoginName, const char* iLoginKey, int16 iWorldAdmin = 0, uint32 ip = 0, uint8 local=0, uint8 version=0);
+	void	CLEAdd(uint32 iLSID, const char* iLoginName, const char* iForumName, const char* iLoginKey, int16 iWorldAdmin = 0, uint32 ip = 0, uint8 local=0, uint8 version=0);
 	void	UpdateClientGuild(uint32 char_id, uint32 guild_id);
-	bool	ActiveConnection(uint32 iAccID);
+	bool ActiveConnectionIncludingStale(uint32 account_id);
+	bool ActiveConnectionKickStale(uint32 account_id);
 	bool	ActiveConnection(uint32 iAccID, uint32 iCharID);
 	bool    IsAccountInGame(uint32 iLSID);
 
@@ -95,6 +91,8 @@ private:
 	Timer	CLStale_timer;
 	uint32 NextCLEID;
 	LinkedList<ClientListEntry *> clientlist;
+	uint32 cached_gm_count;
+	uint32 cached_trader_count;
 
 	std::unique_ptr<EQ::Timer> m_tick;
 };
